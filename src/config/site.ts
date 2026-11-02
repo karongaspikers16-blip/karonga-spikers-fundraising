@@ -16,8 +16,9 @@ export type NeedIcon =
   | "transport"
   | "accommodation"
   | "meals"
+  | "refreshments"
   | "tournament"
-  | "logistics";
+  | "contingency";
 
 export type JourneyIcon = "qualifiers" | "qualified" | "fundraising" | "travel" | "compete";
 
@@ -179,60 +180,71 @@ export const siteConfig: SiteConfig = {
     lastUpdated: "1 November 2026",
   },
 
-  // SAMPLE estimates. They add up to the target above; adjust both together.
+  // From the official budget (public/documents/karonga-spikers-budget-2026.pdf). They add up to the target above.
   needs: {
-    isSample: true,
+    isSample: false,
     items: [
       {
         icon: "transport",
         title: "Transport",
         description: "Return travel from Karonga to Mzuzu for players and officials.",
-        estimate: 450_000,
+        estimate: 750_000,
       },
       {
         icon: "accommodation",
         title: "Accommodation",
-        description: "Three nights in Mzuzu for the full squad.",
-        estimate: 600_000,
-      },
-      {
-        icon: "meals",
-        title: "Meals and refreshments",
-        description: "Breakfast, lunch, supper and drinking water on match days.",
+        description: "Lodging in Mzuzu for the squad and officials during the tournament.",
         estimate: 500_000,
       },
       {
-        icon: "tournament",
-        title: "Tournament expenses",
-        description: "Registration and affiliation fees for the national event.",
-        estimate: 250_000,
+        icon: "meals",
+        title: "Food",
+        description: "Breakfast, lunch and supper for the squad.",
+        estimate: 300_000,
       },
       {
-        icon: "logistics",
-        title: "Team logistics",
-        description: "Kit, first aid, balls and communication during the trip.",
+        icon: "refreshments",
+        title: "Refreshments",
+        description: "Drinking water and refreshments on match days.",
+        estimate: 50_000,
+      },
+      {
+        icon: "tournament",
+        title: "Affiliation fees",
+        description: "Affiliation and registration fees for the national tournament.",
+        estimate: 200_000,
+      },
+      {
+        icon: "contingency",
+        title: "Contingency",
+        description: "Reserve for emergencies such as injuries, delays or unexpected costs.",
         estimate: 200_000,
       },
     ],
     budgetPdf: { href: "/documents/karonga-spikers-budget-2026.pdf", sizeLabel: "PDF, 0.8 MB" },
   },
 
-  // SAMPLE payment details. Replace with the club's verified accounts.
+  // From the official budget (public/documents/karonga-spikers-budget-2026.pdf).
   payments: {
-    isSample: true,
+    isSample: false,
     afterDonatingNote:
       "After you send, message us your name and amount on WhatsApp so we can thank you and keep the total up to date.",
     mobileMoney: [
       {
-        provider: "Airtel Money / TNM Mpamba",
-        number: "+265 999 123 456",
-        accountName: "Karonga Spikers Volleyball Club",
+        provider: "Airtel Money",
+        number: "0992 165 716",
+        accountName: "Abel Chilongo (Club Treasurer)",
+      },
+      {
+        provider: "TNM Mpamba",
+        number: "0885 272 182",
+        accountName: "Abel Chilongo (Club Treasurer)",
       },
     ],
     bank: {
       bankName: "National Bank of Malawi",
-      accountNumber: "1234567890",
-      accountName: "Karonga Spikers Volleyball Club",
+      accountNumber: "1004653528",
+      accountName: "Abel Chilongo (Club Treasurer)",
       branch: null,
       swiftCode: null,
     },

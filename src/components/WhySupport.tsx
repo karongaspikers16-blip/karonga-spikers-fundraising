@@ -1,4 +1,4 @@
-import { Backpack, Bed, BusFront, FileDown, Trophy, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { Bed, BusFront, CupSoda, FileDown, ShieldCheck, Trophy, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { siteConfig, type NeedIcon } from "@/config/site";
 import { formatMoney } from "@/lib/format";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -8,8 +8,9 @@ const icons: Record<NeedIcon, LucideIcon> = {
   transport: BusFront,
   accommodation: Bed,
   meals: UtensilsCrossed,
+  refreshments: CupSoda,
   tournament: Trophy,
-  logistics: Backpack,
+  contingency: ShieldCheck,
 };
 
 export function WhySupport() {
