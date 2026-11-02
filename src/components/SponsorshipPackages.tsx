@@ -1,4 +1,4 @@
-import { Check, Medal } from "lucide-react";
+import { Check, FileDown, Medal } from "lucide-react";
 import { siteConfig, type TierId } from "@/config/site";
 import { formatMoney, whatsappLink } from "@/lib/format";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -34,7 +34,7 @@ const tierStyle: Record<TierId, { card: string; medal: string; text: string; sub
 type Props = { sponsors: Campaign["sponsors"]; whatsappNumber: string };
 
 export function SponsorshipPackages({ sponsors, whatsappNumber }: Props) {
-  const { sponsorship, club } = siteConfig;
+  const { sponsorship, club, needs } = siteConfig;
 
   return (
     <section id="sponsors" aria-labelledby="sponsors-title" className="px-5 py-20 sm:py-28">
@@ -44,6 +44,18 @@ export function SponsorshipPackages({ sponsors, whatsappNumber }: Props) {
           title="Sponsorship packages"
           intro="Back the team as a business, organisation or group of friends. We will agree the details with you directly."
         />
+        {needs.budgetPdf && (
+          <p className="mt-4">
+            <a
+              href={needs.budgetPdf.href}
+              download
+              className="inline-flex items-center gap-1.5 font-semibold text-club underline-offset-4 hover:underline"
+            >
+              <FileDown className="size-4" aria-hidden />
+              Read the full budget (PDF)
+            </a>
+          </p>
+        )}
 
         <div className="mt-14 grid gap-5 lg:grid-cols-3 lg:items-center">
           {sponsorship.tiers.map((tier) => {

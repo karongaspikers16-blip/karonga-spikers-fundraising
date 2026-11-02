@@ -77,6 +77,8 @@ export type SiteConfig = {
       /** Estimated cost. null hides the amount for this item. */
       estimate: number | null;
     }[];
+    /** Downloadable budget. null hides the button. */
+    budgetPdf: { href: string; sizeLabel: string } | null;
   };
   payments: {
     isSample: boolean;
@@ -212,6 +214,7 @@ export const siteConfig: SiteConfig = {
         estimate: 200_000,
       },
     ],
+    budgetPdf: { href: "/documents/karonga-spikers-budget-2026.pdf", sizeLabel: "PDF, 0.8 MB" },
   },
 
   // SAMPLE payment details. Replace with the club's verified accounts.

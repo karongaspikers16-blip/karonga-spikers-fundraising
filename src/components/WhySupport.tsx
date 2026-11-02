@@ -1,4 +1,4 @@
-import { Backpack, Bed, BusFront, Trophy, UtensilsCrossed, type LucideIcon } from "lucide-react";
+import { Backpack, Bed, BusFront, FileDown, Trophy, UtensilsCrossed, type LucideIcon } from "lucide-react";
 import { siteConfig, type NeedIcon } from "@/config/site";
 import { formatMoney } from "@/lib/format";
 import { SectionHeading } from "@/components/ui/SectionHeading";
@@ -74,6 +74,21 @@ export function WhySupport() {
               <p className="font-semibold">Total needed</p>
               <p className="font-display text-2xl font-bold tabular-nums text-gold">{formatMoney(total)}</p>
             </div>
+          )}
+
+          {needs.budgetPdf && (
+            <a
+              href={needs.budgetPdf.href}
+              download
+              target="_blank"
+              rel="noopener"
+              className="mt-3 flex min-h-11 w-full items-center justify-center gap-2 rounded-xl border border-line bg-white px-5 py-3 font-semibold text-forest hover:bg-club-tint"
+            >
+              <FileDown className="size-5 shrink-0" aria-hidden />
+              <span>
+                Download full budget <span className="text-sm font-normal text-ink-soft">· {needs.budgetPdf.sizeLabel}</span>
+              </span>
+            </a>
           )}
         </div>
       </div>
