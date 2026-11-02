@@ -1,0 +1,83 @@
+@import "tailwindcss";
+
+@theme {
+  /* Club palette, matched to the Karonga Spikers badge and kit.
+     Change these values to re-colour the whole site.
+     forest = darkest brand colour, club = main brand colour. */
+  --color-forest: #0e263d; /* badge navy */
+  --color-club: #1c6bd1; /* kit blue, deepened so white text stays readable */
+  --color-gold: #ffd700;
+  --color-mist: #f4f6fa;
+
+  /* Supporting tones derived from the palette */
+  --color-ink: #0c1e31;
+  --color-ink-soft: #4a5a76;
+  --color-line: #dce3ee;
+  --color-club-tint: #e6eefb;
+  --color-gold-tint: #fff6bf;
+
+  --font-display: "Barlow Condensed", "Arial Narrow", "Roboto Condensed", sans-serif;
+  --font-sans: "Barlow", "Segoe UI", system-ui, -apple-system, sans-serif;
+}
+
+@layer base {
+  html {
+    scroll-behavior: smooth;
+    -webkit-text-size-adjust: 100%;
+  }
+
+  body {
+    background-color: var(--color-mist);
+    color: var(--color-ink);
+    font-family: var(--font-sans);
+    -webkit-font-smoothing: antialiased;
+  }
+
+  /* Keep anchor targets clear of the sticky navigation bar */
+  [id] {
+    scroll-margin-top: 5rem;
+  }
+
+  :focus-visible {
+    outline: 3px solid var(--color-gold);
+    outline-offset: 3px;
+    border-radius: 6px;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    html {
+      scroll-behavior: auto;
+    }
+    *,
+    *::before,
+    *::after {
+      transition-duration: 0.01ms !important;
+      animation-duration: 0.01ms !important;
+    }
+  }
+}
+
+/* The single orchestrated motion on the page: the progress bar fills once on load. */
+@keyframes fill-bar {
+  from {
+    transform: scaleX(0);
+  }
+  to {
+    transform: scaleX(1);
+  }
+}
+
+@keyframes ride-bar {
+  from {
+    left: 0%;
+  }
+}
+
+.animate-fill-bar {
+  transform-origin: left center;
+  animation: fill-bar 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
+
+.animate-ride-bar {
+  animation: ride-bar 1.4s cubic-bezier(0.22, 1, 0.36, 1) 0.3s both;
+}
