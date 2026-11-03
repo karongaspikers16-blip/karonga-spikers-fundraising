@@ -36,8 +36,9 @@ Fundraising landing page for Karonga Spikers Volleyball Club and supporters help
 - `src/lib/supabase/`: env settings and public (no cookies), server (session) and browser clients.
 - `src/lib/updates.ts` (types and helpers, safe in client code) and `src/lib/updates-data.ts` (public reads).
 - `src/lib/campaign.ts`: live campaign data for public pages. `src/lib/contributions.ts`: contribution types and labels.
-- `src/app/admin/(staff)/`: Overview (`page.tsx`), `contributions/` (list, new, edit, CSV export), `sponsors/`, `settings/`, `updates/`.
-- `ContributionReportForm.tsx` + `src/app/actions/contribute.ts`: the public "Already sent money?" form.
+- `src/app/admin/(staff)/`: Overview (`page.tsx`), `challenge/`, `contributions/` (list, new, edit, CSV export), `sponsors/`, `settings/`, `updates/`.
+- `ContributionReportForm.tsx` + `src/app/actions/contribute.ts`: the public "Record my contribution" form.
+- `DailyChallenge.tsx` (+ `ChallengeCountdown.tsx`): the Daily 50K Challenge card (`#challenge`). `src/lib/challenge.ts` (types, dates and the 8pm announcement text; client-safe) and `src/lib/challenge-data.ts` (public read). Admin page: `src/app/admin/(staff)/challenge/`.
 - `src/lib/auth.ts`: signed-in staff member and role. `src/lib/resize-image.ts`: canvas resize before upload.
 - `supabase/schema.sql`: tables, RLS and the `update-photos` bucket; `supabase/rls-tests.sql`: RLS checks.
 - `ui/BrandIcons.tsx`: WhatsApp and Facebook brand marks.
@@ -59,7 +60,8 @@ Live campaign data (target, raised, payment details, contacts, journey step, spo
 - Permissions are enforced by RLS in `supabase/schema.sql`; server actions also check the role. Never rely on hiding UI alone.
 - Public pages use the cookie-less client so they stay cacheable; every public read is wrapped in try/catch.
 - After any post or photo change, call `revalidatePath` for `/`, `/updates` and `/updates/<slug>`. After money, sponsor or settings changes, call `revalidatePath("/", "layout")`.
-- Money: `admin` and `treasurer` (`can_manage_money()` / `canManageMoney()`) record and verify; only `admin` deletes and edits `campaign_settings`. The public writes only through `submit_contribution()` (always pending) and reads only `campaign_summary()`; `anon` has no access to the `contributions` table.
+- Money: `admin` and `treasurer` (`can_manage_money()` / `canManageMoney()`) record and verify; only `admin` deletes and edits `campaign_settings`. The public writes only through `submit_contribution()` (always pending) and reads only `campaign_summary()` and `challenge_summary()`; `anon` has no access to the `contributions` table.
+- Daily challenge: settings live in `campaign_settings` (`challenge_*`, `min_contribution`). Each contribution has a `challenge_day` set by the trigger: website entries by submission time with the 8pm cut-off (`challenge_day_for()`), staff entries by `contributed_on`. The public and the secretary read per-day totals and opt-in display names only through `challenge_summary()`; never loosen the contributions RLS for this.
 - `getCampaign()` throws at runtime when Supabase is down so ISR keeps the last good page; during `next build` it falls back to site.ts.
 
 ## Design Rules

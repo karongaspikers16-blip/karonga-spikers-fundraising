@@ -22,7 +22,23 @@ export async function saveSettings(_: ActionResult | null, formData: FormData): 
   const facebook = text(formData, "facebook_url", 300);
   const email = text(formData, "contact_email", 120);
 
+  const minContribution = Number(String(formData.get("min_contribution") ?? "").replace(/[\s,]/g, ""));
+  const dailyTarget = Number(String(formData.get("challenge_daily_target") ?? "").replace(/[\s,]/g, ""));
+  const challengeStart = String(formData.get("challenge_start") ?? "");
+  const challengeEnd = String(formData.get("challenge_end") ?? "");
+  const cutoff = String(formData.get("challenge_cutoff") ?? "").slice(0, 5);
+
   if (!Number.isInteger(target) || target <= 0) return { ok: false, message: "Enter the target in whole kwacha." };
+  if (!Number.isInteger(minContribution) || minContribution < 1 || minContribution > 1_000_000) {
+    return { ok: false, message: "Enter the smallest amount in whole kwacha." };
+  }
+  if (!Number.isInteger(dailyTarget) || dailyTarget <= 0) return { ok: false, message: "Enter the daily target in whole kwacha." };
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(challengeStart) || !/^\d{4}-\d{2}-\d{2}$/.test(challengeEnd) || challengeEnd < challengeStart) {
+    return { ok: false, message: "Choose the challenge's first and last day (the last day cannot be before the first)." };
+  }
+  if (!/^\d{2}:\d{2}$/.test(cutoff) || cutoff < "12:00") {
+    return { ok: false, message: "Choose a closing time between midday and midnight, e.g. 20:00." };
+  }
   if (!Number.isInteger(journeyStep) || journeyStep < 1 || journeyStep > siteConfig.journey.steps.length) {
     return { ok: false, message: "Choose the current journey step." };
   }
@@ -51,6 +67,13 @@ export async function saveSettings(_: ActionResult | null, formData: FormData): 
     contact_email: email,
     facebook_url: facebook,
     contacts_confirmed: formData.get("contacts_confirmed") === "on",
+    min_contribution: minContribution,
+    challenge_enabled: formData.get("challenge_enabled") === "on",
+    challenge_daily_target: dailyTarget,
+    challenge_start: challengeStart,
+    challenge_end: challengeEnd,
+    challenge_cutoff: cutoff,
+    challenge_show_pending: formData.get("challenge_show_pending") === "on",
   };
 
   const { data, error } = await staff.supabase.from("campaign_settings").update(fields).eq("id", 1).select("id").maybeSingle();

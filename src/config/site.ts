@@ -68,6 +68,8 @@ export type SiteConfig = {
     target: number;
     raised: number;
     lastUpdated: string;
+    /** Smallest amount the website form accepts. The live value is in Admin → Settings. */
+    minContribution: number;
   };
   needs: {
     isSample: boolean;
@@ -130,6 +132,16 @@ export type SiteConfig = {
     /** Most photos one post can hold. Also enforced in supabase/schema.sql. */
     maxPhotos: number;
   };
+  /**
+   * Wording for the daily challenge card and the 8pm announcement. The daily target,
+   * dates, cut-off and on/off switch are live settings in Admin → Settings.
+   */
+  challenge: {
+    tagline: string;
+    /** The day the team leaves for the tournament (YYYY-MM-DD), for "N days until we travel". */
+    travelsOn: string;
+    signOff: string;
+  };
   contact: {
     isSample: boolean;
     phoneDisplay: string;
@@ -142,8 +154,8 @@ export type SiteConfig = {
 };
 
 export const siteConfig: SiteConfig = {
-  // TODO: replace with the live Vercel URL (used for share links and previews).
-  siteUrl: "https://karonga-spikers.vercel.app",
+  // The live address, used in share links, previews and the 8pm announcement.
+  siteUrl: "https://karonga-spikers-fundraising.vercel.app",
 
   club: {
     name: "Karonga Spikers Volleyball Club",
@@ -178,6 +190,7 @@ export const siteConfig: SiteConfig = {
     target: 2_000_000,
     raised: 650_000,
     lastUpdated: "1 November 2026",
+    minContribution: 200,
   },
 
   // From the official budget (public/documents/karonga-spikers-budget-2026.pdf). They add up to the target above.
@@ -344,6 +357,12 @@ export const siteConfig: SiteConfig = {
     },
     maxBodyLength: 2000,
     maxPhotos: 8,
+  },
+
+  challenge: {
+    tagline: "Every kwacha counts. Together, we can make Karonga proud.",
+    travelsOn: "2026-11-12",
+    signOff: "Together, we can make Karonga proud. Yours in sport! 🏐",
   },
 
   // Used when Supabase is not set up; the live values are edited in /admin/settings.

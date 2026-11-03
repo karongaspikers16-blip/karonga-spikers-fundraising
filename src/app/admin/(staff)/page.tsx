@@ -1,10 +1,12 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, HandCoins, Newspaper, Plus } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, Flame, HandCoins, Newspaper, Plus } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { canEditPosts, canManageMoney, getStaff } from "@/lib/auth";
 import { formatDate, formatMoney, getProgress } from "@/lib/format";
 import { methodLabel, summarise, type Contribution } from "@/lib/contributions";
 import type { CampaignSettings } from "@/lib/campaign";
+import { challengePhase, challengeTitle, cutoffLabel, type Challenge } from "@/lib/challenge";
+import { toChallenge } from "@/lib/challenge-data";
 
 const DAY = 24 * 60 * 60 * 1000;
 
@@ -33,12 +35,13 @@ export default async function OverviewPage() {
   const money = canManageMoney(role);
   const editor = canEditPosts(role);
 
-  const [summaryRes, contributionsRes, postsRes] = await Promise.all([
+  const [summaryRes, contributionsRes, postsRes, challengeRes] = await Promise.all([
     db.rpc("campaign_summary"),
     money
       ? db.from("contributions").select("*").order("created_at", { ascending: false }).limit(2000)
       : Promise.resolve({ data: null }),
     db.from("updates").select("id, title, published, created_at").order("created_at", { ascending: false }),
+    db.rpc("challenge_summary"),
   ]);
 
   const summary = summaryRes.data as { settings: CampaignSettings; raised: number; contributions: number } | null;
@@ -64,6 +67,12 @@ export default async function OverviewPage() {
       ]
     : [];
   const openChecks = checklist.filter((c) => !c.done);
+
+  const challenge = challengeRes.data ? toChallenge(challengeRes.data as Challenge) : null;
+  const challengeToday =
+    challenge?.enabled && challengePhase(challenge) === "running"
+      ? challenge.days.find((d) => d.day === challenge.today)
+      : undefined;
 
   return (
     <>
@@ -114,6 +123,26 @@ export default async function OverviewPage() {
           {formatMoney(progress.remaining)} still needed of {formatMoney(target)}
         </p>
       </section>
+
+      {challenge && challengeToday && (
+        <Link
+          href="/admin/challenge"
+          className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-white p-4 ring-1 ring-line hover:ring-club"
+        >
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-sm text-ink-soft">
+              <Flame className="size-4 text-club" aria-hidden /> {challengeTitle(challenge.daily_target)} today
+            </span>
+            <span className="block font-display text-2xl font-bold tabular-nums text-forest">
+              {formatMoney(challengeToday.raised)}{" "}
+              <span className="text-base font-semibold text-ink-soft">of {formatMoney(challenge.daily_target)}</span>
+            </span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-club">
+            {cutoffLabel(challenge.cutoff)} post <ArrowRight className="size-4" aria-hidden />
+          </span>
+        </Link>
+      )}
 
       <dl className="mt-3 grid grid-cols-2 gap-3">
         {money && (

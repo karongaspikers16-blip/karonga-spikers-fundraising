@@ -443,6 +443,19 @@ create table if not exists public.campaign_settings (
   updated_by uuid references auth.users (id) on delete set null
 );
 
+-- The smallest amount the public form accepts, and the Daily 50K Challenge (section 5).
+alter table public.campaign_settings
+  add column if not exists min_contribution bigint not null default 200 check (min_contribution between 1 and 1000000),
+  add column if not exists challenge_enabled boolean not null default false,
+  add column if not exists challenge_daily_target bigint not null default 50000
+    check (challenge_daily_target between 1 and 100000000),
+  add column if not exists challenge_start date not null default date '2026-11-03',
+  add column if not exists challenge_end date not null default date '2026-11-10',
+  -- Each challenge day closes at this time (Malawi); later gifts count for the next day.
+  add column if not exists challenge_cutoff time not null default time '20:00' check (challenge_cutoff >= time '12:00'),
+  -- Show "reported, being checked" money on the public bar. Turn off if the form is abused.
+  add column if not exists challenge_show_pending boolean not null default true;
+
 -- Starts with the sample values from src/config/site.ts; the admin replaces them in /admin/settings.
 insert into public.campaign_settings (
   id, target, journey_step, airtel_number, airtel_name, bank_name, bank_account_number, bank_account_name,
@@ -514,6 +527,28 @@ create unique index if not exists contributions_reference_key
   where reference is not null and status <> 'rejected';
 create index if not exists contributions_status_idx on public.contributions (status, created_at desc);
 
+-- display_name: how the supporter wants to be thanked (e.g. "Chikondi M."); null means donor_name.
+-- school: optional, never shown next to a name. challenge_day: set by the trigger below.
+alter table public.contributions
+  add column if not exists display_name text check (display_name is null or char_length(display_name) <= 60),
+  add column if not exists school text check (school is null or char_length(school) <= 80),
+  add column if not exists challenge_day date;
+create index if not exists contributions_challenge_day_idx on public.contributions (challenge_day, status);
+
+-- The challenge day a moment belongs to. Days close at the cut-off (8pm), so a gift at 9pm counts for tomorrow.
+create or replace function public.challenge_day_for(ts timestamptz)
+returns date
+language sql
+stable
+set search_path = ''
+as $$
+  select ((ts at time zone 'Africa/Blantyre')
+          + (interval '24 hours'
+             - coalesce((select challenge_cutoff from public.campaign_settings where id = 1), time '20:00')::interval))::date
+$$;
+
+grant execute on function public.challenge_day_for(timestamptz) to anon, authenticated;
+
 create or replace function public.contributions_before_write()
 returns trigger
 language plpgsql
@@ -540,6 +575,17 @@ begin
     new.verified_at := null;
   end if;
 
+  -- Website entries count for the challenge day they were sent in (fixed); staff entries for the date paid.
+  if new.source = 'staff' then
+    new.challenge_day := new.contributed_on;
+  elsif tg_op = 'INSERT' then
+    new.challenge_day := public.challenge_day_for(now());
+  else
+    new.challenge_day := coalesce(old.challenge_day, public.challenge_day_for(old.created_at));
+  end if;
+
+  new.display_name := nullif(trim(new.display_name), '');
+  new.school := nullif(trim(new.school), '');
   new.reference := nullif(trim(new.reference), '');
   new.updated_at := now();
   return new;
@@ -580,6 +626,9 @@ grant select, insert, update, delete on public.contributions to authenticated;
 -- 4.4 Public "I have sent money" form ------------------------------------
 -- The only way the public can write anything. Always saved as 'pending'.
 
+-- The first version had no display name or school.
+drop function if exists public.submit_contribution(text, text, bigint, text, text, boolean, text);
+
 create or replace function public.submit_contribution(
   p_name text,
   p_phone text,
@@ -587,7 +636,9 @@ create or replace function public.submit_contribution(
   p_method text,
   p_reference text,
   p_show_name boolean,
-  p_message text
+  p_message text,
+  p_display_name text default null,
+  p_school text default null
 )
 returns uuid
 language plpgsql
@@ -600,7 +651,8 @@ begin
   if char_length(trim(coalesce(p_name, ''))) not between 1 and 120 then
     raise exception 'invalid_name' using errcode = 'check_violation';
   end if;
-  if p_amount is null or p_amount < 50 or p_amount > 100000000 then
+  if p_amount is null or p_amount > 100000000
+     or p_amount < coalesce((select min_contribution from public.campaign_settings where id = 1), 50) then
     raise exception 'invalid_amount' using errcode = 'check_violation';
   end if;
   if p_method not in ('airtel_money', 'tnm_mpamba', 'bank') then
@@ -616,7 +668,7 @@ begin
   end if;
 
   insert into public.contributions
-    (donor_name, donor_phone, amount, method, reference, show_name, message, status, source, created_by)
+    (donor_name, donor_phone, amount, method, reference, show_name, message, display_name, school, status, source, created_by)
   values (
     trim(p_name),
     nullif(left(trim(coalesce(p_phone, '')), 30), ''),
@@ -625,6 +677,8 @@ begin
     trim(p_reference),
     coalesce(p_show_name, false),
     nullif(left(trim(coalesce(p_message, '')), 300), ''),
+    nullif(left(trim(coalesce(p_display_name, '')), 60), ''),
+    nullif(left(trim(coalesce(p_school, '')), 80), ''),
     'pending',
     'public_form',
     null
@@ -636,8 +690,9 @@ exception
     raise exception 'duplicate_reference' using errcode = 'unique_violation';
 end $$;
 
-revoke execute on function public.submit_contribution(text, text, bigint, text, text, boolean, text) from public;
-grant execute on function public.submit_contribution(text, text, bigint, text, text, boolean, text) to anon, authenticated;
+revoke execute on function public.submit_contribution(text, text, bigint, text, text, boolean, text, text, text) from public;
+grant execute on function public.submit_contribution(text, text, bigint, text, text, boolean, text, text, text)
+  to anon, authenticated;
 
 -- 4.5 Public summary ------------------------------------------------------
 -- Totals and opt-in names only: no amounts per person, no phone numbers.
@@ -655,12 +710,12 @@ as $$
     'contributions', (select count(*) from public.contributions where status = 'verified'),
     'last_verified_at', (select max(verified_at) from public.contributions where status = 'verified'),
     'names', coalesce((
-      select jsonb_agg(t.donor_name order by t.latest desc)
+      select jsonb_agg(t.shown order by t.latest desc)
       from (
-        select min(donor_name) as donor_name, max(verified_at) as latest
+        select min(coalesce(display_name, donor_name)) as shown, max(verified_at) as latest
         from public.contributions
         where status = 'verified' and show_name
-        group by lower(donor_name)
+        group by lower(coalesce(display_name, donor_name))
         order by max(verified_at) desc
         limit 80
       ) t
@@ -676,3 +731,72 @@ $$;
 
 revoke execute on function public.campaign_summary() from public;
 grant execute on function public.campaign_summary() to anon, authenticated;
+
+-- =========================================================================
+-- 5. Daily 50K Challenge
+-- =========================================================================
+-- Per-day totals for the public challenge card and the 8pm announcement. Public data only:
+-- day totals, supporter counts and opt-in names. No amounts per person, phones or schools.
+-- The secretary reads it through this function, so the contributions table stays hidden from them.
+
+create or replace function public.challenge_summary()
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  with s as (
+    select * from public.campaign_settings where id = 1
+  ),
+  c as (
+    select c.challenge_day, c.status, c.amount, c.show_name, c.donor_name, c.verified_at,
+           coalesce(c.display_name, c.donor_name) as shown
+    from public.contributions c, s
+    where c.challenge_day between s.challenge_start and s.challenge_end and c.status <> 'rejected'
+  ),
+  days as (
+    select d::date as day from s, generate_series(s.challenge_start, s.challenge_end, interval '1 day') d
+  )
+  select jsonb_build_object(
+    'enabled', s.challenge_enabled,
+    'daily_target', s.challenge_daily_target,
+    'start', s.challenge_start,
+    'end', s.challenge_end,
+    'cutoff', to_char(s.challenge_cutoff, 'HH24:MI'),
+    'min_amount', s.min_contribution,
+    'today', public.challenge_day_for(now()),
+    'days', coalesce((
+      select jsonb_agg(jsonb_build_object(
+        'day', days.day,
+        'raised', coalesce((select sum(amount) from c where c.challenge_day = days.day and c.status = 'verified'), 0),
+        'supporters', (select count(distinct lower(donor_name)) from c
+                       where c.challenge_day = days.day and c.status = 'verified'),
+        -- Each report counts for at most one day's target, so one fake entry cannot fill the bar.
+        'pending', case when s.challenge_show_pending then coalesce((
+                     select sum(least(amount, s.challenge_daily_target)) from c
+                     where c.challenge_day = days.day and c.status = 'pending'), 0) else 0 end,
+        'pending_count', (select count(*) from c where c.challenge_day = days.day and c.status = 'pending'),
+        'names', coalesce((
+          select jsonb_agg(n.shown order by n.first_verified)
+          from (
+            select min(shown) as shown, min(verified_at) as first_verified
+            from c
+            where c.challenge_day = days.day and c.status = 'verified' and c.show_name
+            group by lower(shown)
+            order by min(verified_at)
+            limit 300
+          ) n
+        ), '[]'::jsonb)
+      ) order by days.day)
+      from days
+    ), '[]'::jsonb)
+  )
+  from s
+$$;
+
+revoke execute on function public.challenge_summary() from public;
+grant execute on function public.challenge_summary() to anon, authenticated;
+
+-- Give contributions made before section 5 their challenge day (the trigger fills it in on update).
+update public.contributions set updated_at = updated_at where challenge_day is null;

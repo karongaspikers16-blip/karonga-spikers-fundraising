@@ -9,14 +9,20 @@ import { Contact } from "@/components/Contact";
 import { Footer } from "@/components/Footer";
 import { LatestUpdates } from "@/components/LatestUpdates";
 import { getPublishedUpdates } from "@/lib/updates-data";
+import { DailyChallenge } from "@/components/DailyChallenge";
 import { getCampaign } from "@/lib/campaign";
+import { getChallenge } from "@/lib/challenge-data";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
 
 // Figures and news come from Supabase; refresh the cached page at most once a minute.
 export const revalidate = 60;
 
 export default async function HomePage() {
-  const [campaign, { data: latest }] = await Promise.all([getCampaign(), getPublishedUpdates(3)]);
+  const [campaign, { data: latest }, challenge] = await Promise.all([
+    getCampaign(),
+    getPublishedUpdates(3),
+    getChallenge(),
+  ]);
 
   return (
     <>
@@ -24,9 +30,15 @@ export default async function HomePage() {
       <main>
         <Hero />
         <FundraisingProgress fundraising={campaign.fundraising} supporterNames={campaign.supporterNames} />
+        {challenge?.enabled && challenge.days.length > 0 && <DailyChallenge challenge={challenge} />}
         <WhySupport />
         <LatestUpdates posts={latest} />
-        <DonationMethods payments={campaign.payments} contact={campaign.contact} showReportForm={isSupabaseConfigured} />
+        <DonationMethods
+          payments={campaign.payments}
+          contact={campaign.contact}
+          showReportForm={isSupabaseConfigured}
+          minAmount={campaign.fundraising.minContribution}
+        />
         <SponsorshipPackages sponsors={campaign.sponsors} whatsappNumber={campaign.contact.whatsappNumber} />
         <Journey currentStep={campaign.journeyStep} />
         <Contact contact={campaign.contact} />

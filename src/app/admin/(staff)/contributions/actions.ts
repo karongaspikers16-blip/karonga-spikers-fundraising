@@ -57,6 +57,8 @@ export async function saveContribution(_: ActionResult | null, formData: FormDat
     donor_phone: String(formData.get("donor_phone") ?? "").trim() || null,
     note: String(formData.get("note") ?? "").trim() || null,
     show_name: formData.get("show_name") === "on",
+    display_name: String(formData.get("display_name") ?? "").trim().slice(0, 60) || null,
+    school: String(formData.get("school") ?? "").trim().slice(0, 80) || null,
   };
 
   const { data, error } = id

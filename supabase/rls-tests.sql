@@ -4,7 +4,7 @@
 -- Run in Supabase Dashboard -> SQL Editor AFTER schema.sql.
 -- Everything happens inside one transaction that is rolled back at the
 -- end, so no test users, posts or files are left behind.
--- Expected result: a list of "PASS" notices (1 to 12) and no exception.
+-- Expected result: a list of "PASS" notices (1 to 13c) and no exception.
 -- =====================================================================
 
 begin;
@@ -309,6 +309,75 @@ begin
   get diagnostics n = row_count;
   if n <> 1 then raise exception 'FAIL: admin could not delete a contribution'; end if;
   raise notice 'PASS 12: admin can change settings and delete contributions';
+end $$;
+
+-- 13. Daily challenge: days close at 8pm, the minimum is enforced, and the summary has no private details.
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000d4');
+update public.campaign_settings
+  set challenge_enabled = true, challenge_cutoff = '20:00', min_contribution = 200,
+      challenge_start = public.challenge_day_for(now()) - 1, challenge_end = public.challenge_day_for(now()) + 7
+  where id = 1;
+
+select pg_temp.act_as_public();
+do $$
+declare s jsonb; today jsonb;
+begin
+  if public.challenge_day_for('2026-11-03 19:59+02') <> date '2026-11-03'
+     or public.challenge_day_for('2026-11-03 20:00+02') <> date '2026-11-04' then
+    raise exception 'FAIL: challenge days should close at 8pm Malawi time';
+  end if;
+  begin
+    perform public.submit_contribution('Tiny', null, 150, 'airtel_money', 'TESTREF130', false, null);
+    raise exception 'FAIL: an amount below the minimum was accepted';
+  exception when check_violation then null;
+  end;
+  perform public.submit_contribution('Chikondi Mwale', '0999111222', 300, 'tnm_mpamba', 'TESTREF131', true, null,
+                                     'Chikondi M.', 'Karonga CDSS');
+  s := public.challenge_summary();
+  if s::text ~ '(Karonga CDSS|0999111222|TESTREF|Chikondi Mwale)' then
+    raise exception 'FAIL: the challenge summary exposes private details';
+  end if;
+  select d into today from jsonb_array_elements(s->'days') d where d->>'day' = s->>'today';
+  if (today->>'pending_count')::int < 1 or (today->>'pending')::bigint < 300 then
+    raise exception 'FAIL: today should show the pending report (got %)', today;
+  end if;
+  raise notice 'PASS 13a: 8pm cut-off, minimum amount, pending shown separately, no private details in the summary';
+end $$;
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000b2');
+do $$
+declare s jsonb; today jsonb; before bigint; tomorrow date := public.challenge_day_for(now()) + 1;
+begin
+  if (select challenge_day from public.contributions where reference = 'TESTREF131') <> public.challenge_day_for(now()) then
+    raise exception 'FAIL: a website entry should count for the day it was sent';
+  end if;
+  s := public.challenge_summary();
+  select (d->>'raised')::bigint into before from jsonb_array_elements(s->'days') d where d->>'day' = s->>'today';
+  update public.contributions set status = 'verified' where reference = 'TESTREF131';
+  insert into public.contributions (donor_name, amount, method, status, contributed_on)
+    values ('Cash Tomorrow', 1000, 'cash', 'verified', tomorrow);
+  if (select challenge_day from public.contributions where donor_name = 'Cash Tomorrow') <> tomorrow then
+    raise exception 'FAIL: a staff entry should count for the date paid';
+  end if;
+  s := public.challenge_summary();
+  select d into today from jsonb_array_elements(s->'days') d where d->>'day' = s->>'today';
+  if not (today->'names') ? 'Chikondi M.' or (today->'names') ? 'Chikondi Mwale' then
+    raise exception 'FAIL: the chosen display name should be thanked, not the full name (got %)', today->'names';
+  end if;
+  if (today->>'raised')::bigint <> before + 300 then
+    raise exception 'FAIL: verifying 300 today should add exactly 300 (got % -> %)', before, today->>'raised';
+  end if;
+  raise notice 'PASS 13b: entries land on the right day; display names are used';
+end $$;
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+do $$
+begin
+  if (public.challenge_summary()->>'enabled')::boolean is not true then
+    raise exception 'FAIL: the secretary should be able to read the challenge summary';
+  end if;
+  if (select count(*) from public.contributions) <> 0 then raise exception 'FAIL: secretary can see contributions'; end if;
+  raise notice 'PASS 13c: secretary reads the challenge summary but still cannot see contributions';
 end $$;
 
 rollback;

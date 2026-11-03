@@ -11,6 +11,11 @@ export type Contribution = {
   reference: string | null;
   contributed_on: string;
   show_name: boolean;
+  /** How the supporter wants to be thanked; null means donor_name. */
+  display_name: string | null;
+  school: string | null;
+  /** The challenge day it counts for (set by the database). */
+  challenge_day: string | null;
   message: string | null;
   status: ContributionStatus;
   source: "public_form" | "staff";

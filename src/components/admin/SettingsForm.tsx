@@ -45,7 +45,7 @@ export function SettingsForm({ settings }: { settings: CampaignSettings }) {
     </label>
   );
 
-  const confirm = (name: string, label: string) => (
+  const toggle = (name: string, label: string, hint: string) => (
     <label className="flex items-start gap-3 rounded-xl bg-mist p-3.5 ring-1 ring-line">
       <input
         type="checkbox"
@@ -56,10 +56,13 @@ export function SettingsForm({ settings }: { settings: CampaignSettings }) {
       />
       <span className="text-sm text-ink">
         <span className="font-semibold">{label}</span>
-        <span className="block text-ink-soft">Removes the yellow “Sample” badge from this part of the website.</span>
+        <span className="block text-ink-soft">{hint}</span>
       </span>
     </label>
   );
+
+  const confirm = (name: string, label: string) =>
+    toggle(name, label, "Removes the yellow “Sample” badge from this part of the website.");
 
   return (
     <form action={action} className="space-y-6">
@@ -81,6 +84,28 @@ export function SettingsForm({ settings }: { settings: CampaignSettings }) {
           </select>
         </label>
         {confirm("target_confirmed", "The target is final")}
+        {input("min_contribution", "Smallest amount the website form accepts (MWK)", { inputMode: "numeric", required: true })}
+      </Section>
+
+      <Section
+        title="Daily challenge"
+        hint="A daily target with a result announced every evening. Only verified contributions count."
+      >
+        {toggle("challenge_enabled", "Show the challenge on the website", "Turn off when the challenge is over to hide it.")}
+        {input("challenge_daily_target", "Daily target (MWK)", { inputMode: "numeric", required: true })}
+        <div className="grid gap-4 sm:grid-cols-3">
+          {input("challenge_start", "First day", { type: "date", required: true })}
+          {input("challenge_end", "Last day", { type: "date", required: true })}
+          {input("challenge_cutoff", "Each day closes at", { type: "time", required: true })}
+        </div>
+        <p className="text-xs text-ink-soft">
+          Gifts reported on the website after the closing time count for the next day.
+        </p>
+        {toggle(
+          "challenge_show_pending",
+          "Show reported money that is still being checked",
+          "Shown lighter on the bar so the day feels alive. Turn off if people report fake amounts.",
+        )}
       </Section>
 
       <Section

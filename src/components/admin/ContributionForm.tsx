@@ -29,6 +29,8 @@ export function ContributionForm({ contribution }: { contribution?: Contribution
     donor_phone: contribution?.donor_phone ?? "",
     status: (contribution?.status ?? "verified") as ContributionStatus,
     show_name: contribution?.show_name ?? false,
+    display_name: contribution?.display_name ?? "",
+    school: contribution?.school ?? "",
     note: contribution?.note ?? "",
   });
   const set = <K extends keyof typeof values>(key: K, value: (typeof values)[K]) =>
@@ -149,6 +151,33 @@ export function ContributionForm({ contribution }: { contribution?: Contribution
         />
         <span className="text-ink">Show the name on the public supporters list (never the amount)</span>
       </label>
+
+      <div className="grid gap-5 sm:grid-cols-2">
+        <label className="block">
+          <span className="text-sm font-semibold text-ink">
+            Name to show <span className="font-normal text-ink-soft">(optional, e.g. “Chikondi M.”)</span>
+          </span>
+          <input
+            name="display_name"
+            maxLength={60}
+            value={values.display_name}
+            onChange={(e) => set("display_name", e.target.value)}
+            className={field}
+          />
+        </label>
+        <label className="block">
+          <span className="text-sm font-semibold text-ink">
+            School or college <span className="font-normal text-ink-soft">(optional, private)</span>
+          </span>
+          <input
+            name="school"
+            maxLength={80}
+            value={values.school}
+            onChange={(e) => set("school", e.target.value)}
+            className={field}
+          />
+        </label>
+      </div>
 
       <label className="block">
         <span className="text-sm font-semibold text-ink">

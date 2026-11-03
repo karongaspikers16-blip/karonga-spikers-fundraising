@@ -38,9 +38,11 @@ type Props = {
   contact: Campaign["contact"];
   /** Shows the "I have sent money" form (needs Supabase). */
   showReportForm: boolean;
+  /** Smallest amount the form accepts. */
+  minAmount: number;
 };
 
-export function DonationMethods({ payments, contact, showReportForm }: Props) {
+export function DonationMethods({ payments, contact, showReportForm, minAmount }: Props) {
   const { club } = siteConfig;
   const { bank } = payments;
   const reportMethods = [
@@ -114,12 +116,12 @@ export function DonationMethods({ payments, contact, showReportForm }: Props) {
 
         {showReportForm && reportMethods.length > 0 && (
           <div id="report" className="mt-8 rounded-2xl bg-white/[0.06] p-5 ring-1 ring-white/15 sm:p-7">
-            <h3 className="font-display text-3xl font-extrabold uppercase leading-[0.95]">Already sent money?</h3>
+            <h3 className="font-display text-3xl font-extrabold uppercase leading-[0.95]">Record my contribution</h3>
             <p className="mt-2 max-w-2xl text-white/80">
-              Tell us here so we can thank you and add it to the total. It takes a minute.
+              Sent money? Tell us here so we can thank you and count it. It takes less than a minute.
             </p>
             <div className="mt-6">
-              <ContributionReportForm methods={reportMethods} />
+              <ContributionReportForm methods={reportMethods} minAmount={minAmount} />
             </div>
           </div>
         )}

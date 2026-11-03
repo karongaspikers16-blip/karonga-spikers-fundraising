@@ -18,7 +18,7 @@ export async function GET() {
     const text = value === null || value === undefined ? "" : String(value);
     return `"${(/^[=+\-@]/.test(text) ? `'${text}` : text).replace(/"/g, '""')}"`;
   };
-  const header = ["Date paid", "Donor", "Amount (MWK)", "Method", "Transaction ID", "Status", "Phone", "Name shown", "Source", "Note", "Message", "Recorded"];
+  const header = ["Date paid", "Donor", "Amount (MWK)", "Method", "Transaction ID", "Status", "Phone", "Name shown", "Thanked as", "School", "Challenge day", "Source", "Note", "Message", "Recorded"];
   const lines = ((data ?? []) as Contribution[]).map((c) =>
     [
       c.contributed_on,
@@ -29,6 +29,9 @@ export async function GET() {
       statusLabels[c.status],
       c.donor_phone,
       c.show_name ? "Yes" : "No",
+      c.display_name,
+      c.school,
+      c.challenge_day,
       c.source === "public_form" ? "Website form" : "Staff",
       c.note,
       c.message,

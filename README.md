@@ -53,13 +53,14 @@ Push to GitHub, import the repo in Vercel, deploy. Add the two Supabase variable
 | Section | Admin | Treasurer | Secretary |
 |---|---|---|---|
 | Overview: raised vs target, money waiting to check, countdown, drafts | ✅ | ✅ | ✅ (no money details) |
+| Challenge: day results and the ready-made 8pm announcement | ✅ | ✅ | ✅ |
 | Contributions: record, verify, reject, export CSV | ✅ (and delete) | ✅ | — |
 | Updates: news posts with photos | ✅ | view only | ✅ |
 | Sponsors: add, edit, remove | ✅ | view only | ✅ |
-| Settings: target, journey step, payment numbers, contacts, Sample badges | ✅ | — | — |
+| Settings: target, journey step, payment numbers, contacts, Sample badges, daily challenge | ✅ | — | — |
 
 **The amount raised is never typed in by hand.** It is the sum of *verified* contributions. Supporters who
-pay can fill in **"Already sent money?"** on the website; that arrives as **To check** until the treasurer
+pay can fill in **"Record my contribution"** on the website; that arrives as **To check** until the treasurer
 matches it against the Mobile Money or bank statement and taps **Verify**. Donors choose whether their name
 appears on the public supporters list; amounts and phone numbers are never shown.
 
@@ -81,7 +82,7 @@ This is enforced by row level security in the database, not just hidden in the p
 
 You can do all of this on your phone.
 
-1. **Log in.** Open the website address followed by `/admin` (for example `karonga-spikers.vercel.app/admin`)
+1. **Log in.** Open the website address followed by `/admin` (for example `karonga-spikers-fundraising.vercel.app/admin`)
    and sign in with your email and password. Tip: add it to your home screen.
 2. **New post.** Tap **New post**. Write a short title, choose a category (Training, Match day…) and write
    what happened. Leave an empty line between paragraphs. If a sponsor helped, tap their name under
@@ -99,3 +100,35 @@ You can do all of this on your phone.
 
 Changes show on the public website within about a minute. To hide a post again, switch it back to
 **Draft** and save. To remove it completely, tap **Delete post** at the bottom (its photos are deleted too).
+
+## The Daily 50K Challenge
+
+The big target is broken into a daily one: **MWK 50,000 a day from 3 to 10 November**. Anyone can join from
+**MWK 200**. Each day closes at **8pm** (Malawi time) and the result is posted on WhatsApp and Facebook.
+
+- **Only verified money counts.** Money reported on the website but not yet checked shows lighter on the
+  bar ("being checked") so people can see the day moving, but it never counts in a result.
+- **A day closes at 8pm.** Anything reported on the website after 8pm counts for the next day. When the
+  treasurer records cash, it counts for the **Date paid** on the form.
+- **Names, never amounts.** Supporters who tick "Thank me by name" are thanked on the website and in the
+  announcement, using their **Name to show** (for example "Chikondi M.") if they gave one. The box is
+  unticked unless they choose it. Schools are kept private.
+- **Settings** (admin): Admin → Settings → Daily challenge has the on/off switch, daily target, first and
+  last day, closing time and the smallest amount. Switch it off after 10 November to hide it.
+
+### Every day, for the treasurer
+
+1. Check **Contributions → To check** a few times a day (for example 12pm, 4pm and 7:30pm). Each card
+   shows the **Transaction ID** in large letters: find it in your Airtel Money, TNM Mpamba or bank
+   messages. If the money arrived with the right amount, tap **Verify**; if not, tap **Reject**.
+2. Have everything checked by **7:45pm**, so it is in the 8pm result. Cash received after 8pm: record it
+   with tomorrow's date.
+
+### Every evening at 8pm, for the secretary
+
+1. Open **Admin → Challenge** (or the challenge box on the Overview). After 8pm it opens on the day that
+   has just closed.
+2. If it says entries are still waiting to be checked, ask the treasurer first.
+3. Tap **Copy message** and paste it into the WhatsApp groups and on Facebook, or tap **Share on WhatsApp**.
+   The message has the day's result, the running total, the thank-you names and the link.
+4. During the day you can post the same page as a "so far today" update to build excitement.

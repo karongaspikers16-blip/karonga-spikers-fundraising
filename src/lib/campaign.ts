@@ -36,6 +36,14 @@ export type CampaignSettings = {
   contact_email: string | null;
   facebook_url: string | null;
   contacts_confirmed: boolean;
+  min_contribution: number;
+  challenge_enabled: boolean;
+  challenge_daily_target: number;
+  challenge_start: string;
+  challenge_end: string;
+  /** "20:00:00" */
+  challenge_cutoff: string;
+  challenge_show_pending: boolean;
   updated_at: string;
 };
 
@@ -76,6 +84,7 @@ function fromSummary(summary: Summary): Campaign {
       raised: Number(summary.raised),
       lastUpdated: formatDate(summary.last_verified_at ?? s.updated_at),
       contributions: Number(summary.contributions),
+      minContribution: Number(s.min_contribution ?? siteConfig.fundraising.minContribution),
     },
     supporterNames: summary.names,
     payments: {

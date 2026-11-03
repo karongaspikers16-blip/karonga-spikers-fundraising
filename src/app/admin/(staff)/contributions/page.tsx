@@ -4,6 +4,7 @@ import { Download, Eye, Globe, Pencil, Plus } from "lucide-react";
 import { canManageMoney, getStaff } from "@/lib/auth";
 import { formatDate, formatMoney } from "@/lib/format";
 import { methodLabel, statusLabels, summarise, type Contribution, type ContributionStatus } from "@/lib/contributions";
+import { formatDay } from "@/lib/challenge";
 import { ContributionStatusButtons } from "@/components/admin/ContributionActions";
 
 type Props = { searchParams: Promise<{ status?: string; q?: string; saved?: string }> };
@@ -30,7 +31,8 @@ export default async function ContributionsPage({ searchParams }: Props) {
   const shown = rows.filter(
     (r) =>
       (status === "all" || r.status === status) &&
-      (!q || r.donor_name.toLowerCase().includes(q) || (r.reference ?? "").toLowerCase().includes(q)),
+      (!q ||
+        [r.donor_name, r.display_name, r.reference, r.school].some((v) => (v ?? "").toLowerCase().includes(q))),
   );
 
   return (
@@ -102,7 +104,7 @@ export default async function ContributionsPage({ searchParams }: Props) {
         <input
           name="q"
           defaultValue={params.q}
-          placeholder="Search name or transaction ID"
+          placeholder="Search name, school or transaction ID"
           aria-label="Search contributions"
           className="block w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-base text-ink focus:border-club focus:outline-none"
         />
@@ -122,19 +124,25 @@ export default async function ContributionsPage({ searchParams }: Props) {
                     <span className="truncate">{c.donor_name}</span>
                     {c.show_name && <Eye className="size-4 shrink-0 text-club" aria-label="Name shown publicly" />}
                   </p>
+                  {c.show_name && c.display_name && (
+                    <p className="text-sm text-ink-soft">Thanked as “{c.display_name}”</p>
+                  )}
                   <p className="mt-0.5 text-sm text-ink-soft">
                     {methodLabel(c.method)} · {formatDate(c.contributed_on)}
+                    {c.challenge_day && c.challenge_day !== c.contributed_on && ` · counts for ${formatDay(c.challenge_day)}`}
                   </p>
                 </div>
                 <p className="shrink-0 font-display text-2xl font-bold tabular-nums text-forest">{formatMoney(c.amount)}</p>
               </div>
 
+              {c.reference && (
+                <p className="mt-2 text-sm text-ink-soft">
+                  Transaction ID{" "}
+                  <span className="block break-all font-mono text-lg font-semibold tracking-wide text-ink">{c.reference}</span>
+                </p>
+              )}
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-soft">
-                {c.reference && (
-                  <span>
-                    Ref: <span className="font-mono text-ink">{c.reference}</span>
-                  </span>
-                )}
+                {c.school && <span>School: {c.school}</span>}
                 {c.donor_phone && (
                   <a href={`tel:${c.donor_phone.replace(/\s+/g, "")}`} className="text-club hover:underline">
                     {c.donor_phone}

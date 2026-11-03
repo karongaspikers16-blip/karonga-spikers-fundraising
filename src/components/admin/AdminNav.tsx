@@ -2,11 +2,12 @@
 
 import Link from "next/link";
 import { usePathname } from "next/navigation";
-import { HandCoins, LayoutDashboard, Medal, Newspaper, Settings } from "lucide-react";
+import { Flame, HandCoins, LayoutDashboard, Medal, Newspaper, Settings } from "lucide-react";
 import type { StaffRole } from "@/lib/auth";
 
 const items = [
   { href: "/admin", label: "Overview", icon: LayoutDashboard, roles: ["admin", "secretary", "treasurer"] },
+  { href: "/admin/challenge", label: "Challenge", icon: Flame, roles: ["admin", "secretary", "treasurer"] },
   { href: "/admin/contributions", label: "Contributions", icon: HandCoins, roles: ["admin", "treasurer"] },
   { href: "/admin/updates", label: "Updates", icon: Newspaper, roles: ["admin", "secretary", "treasurer"] },
   { href: "/admin/sponsors", label: "Sponsors", icon: Medal, roles: ["admin", "secretary", "treasurer"] },
