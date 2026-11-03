@@ -32,7 +32,7 @@ export default async function ContributionsPage({ searchParams }: Props) {
     (r) =>
       (status === "all" || r.status === status) &&
       (!q ||
-        [r.donor_name, r.display_name, r.reference, r.school].some((v) => (v ?? "").toLowerCase().includes(q))),
+        [r.donor_name, r.display_name, r.reference].some((v) => (v ?? "").toLowerCase().includes(q))),
   );
 
   return (
@@ -104,7 +104,7 @@ export default async function ContributionsPage({ searchParams }: Props) {
         <input
           name="q"
           defaultValue={params.q}
-          placeholder="Search name, school or transaction ID"
+          placeholder="Search name or transaction ID"
           aria-label="Search contributions"
           className="block w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-base text-ink focus:border-club focus:outline-none"
         />
@@ -142,7 +142,6 @@ export default async function ContributionsPage({ searchParams }: Props) {
                 </p>
               )}
               <div className="mt-2 flex flex-wrap gap-x-4 gap-y-1 text-sm text-ink-soft">
-                {c.school && <span>School: {c.school}</span>}
                 {c.donor_phone && (
                   <a href={`tel:${c.donor_phone.replace(/\s+/g, "")}`} className="text-club hover:underline">
                     {c.donor_phone}

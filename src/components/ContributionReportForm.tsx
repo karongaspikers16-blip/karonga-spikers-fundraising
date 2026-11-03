@@ -77,13 +77,7 @@ export function ContributionReportForm({ methods, minAmount }: Props) {
           className={field}
         />
       </label>
-      <label className="block">
-        <span className="text-sm font-semibold">
-          School or college <span className="font-normal text-white/60">(optional)</span>
-        </span>
-        <input name="school" maxLength={80} defaultValue={typed?.school} placeholder="e.g. Karonga CDSS" className={field} />
-      </label>
-      <label className="block">
+      <label className="block sm:col-span-2">
         <span className="text-sm font-semibold">
           Phone number <span className="font-normal text-white/60">(optional, never shown)</span>
         </span>

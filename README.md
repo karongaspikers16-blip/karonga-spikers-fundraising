@@ -112,7 +112,7 @@ The big target is broken into a daily one: **MWK 50,000 a day from 3 to 10 Novem
   treasurer records cash, it counts for the **Date paid** on the form.
 - **Names, never amounts.** Supporters who tick "Thank me by name" are thanked on the website and in the
   announcement, using their **Name to show** (for example "Chikondi M.") if they gave one. The box is
-  unticked unless they choose it. Schools are kept private.
+  unticked unless they choose it.
 - **Settings** (admin): Admin → Settings → Daily challenge has the on/off switch, daily target, first and
   last day, closing time and the smallest amount. Switch it off after 10 November to hide it.
 

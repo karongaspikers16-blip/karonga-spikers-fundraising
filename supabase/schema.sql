@@ -528,7 +528,8 @@ create unique index if not exists contributions_reference_key
 create index if not exists contributions_status_idx on public.contributions (status, created_at desc);
 
 -- display_name: how the supporter wants to be thanked (e.g. "Chikondi M."); null means donor_name.
--- school: optional, never shown next to a name. challenge_day: set by the trigger below.
+-- school: no longer asked for (the challenge is for everyone); kept so the form function stays compatible.
+-- challenge_day: set by the trigger below.
 alter table public.contributions
   add column if not exists display_name text check (display_name is null or char_length(display_name) <= 60),
   add column if not exists school text check (school is null or char_length(school) <= 80),

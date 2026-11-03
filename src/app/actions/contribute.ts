@@ -4,7 +4,7 @@ import { formatMoney } from "@/lib/format";
 import { createPublicSupabase } from "@/lib/supabase/public";
 
 /** What was typed, sent back on an error so the form can show it again. */
-export type ReportValues = Record<"name" | "amount" | "method" | "reference" | "school" | "phone" | "display_name", string> & {
+export type ReportValues = Record<"name" | "amount" | "method" | "reference" | "phone" | "display_name", string> & {
   show_name: boolean;
 };
 
@@ -26,7 +26,6 @@ export async function reportContribution(previous: ReportState, formData: FormDa
     amount: get("amount"),
     method: get("method"),
     reference: get("reference"),
-    school: get("school"),
     phone: get("phone"),
     display_name: get("display_name"),
     show_name: formData.get("show_name") === "on",
@@ -55,7 +54,6 @@ export async function reportContribution(previous: ReportState, formData: FormDa
     p_show_name: values.show_name,
     p_message: "",
     p_display_name: values.display_name,
-    p_school: values.school,
   });
 
   if (error) {
