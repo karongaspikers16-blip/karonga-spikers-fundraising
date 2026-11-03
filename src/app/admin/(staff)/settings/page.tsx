@@ -31,7 +31,7 @@ export default async function SettingsPage() {
       </p>
       <div className="mt-6">
         {/* The time input wants "20:00", the database gives "20:00:00". */}
-        <SettingsForm settings={{ ...settings, challenge_cutoff: String(settings.challenge_cutoff ?? "20:00").slice(0, 5) }} />
+        <SettingsForm settings={{ ...settings, challenge_cutoff: String(settings.challenge_cutoff ?? "24:00").slice(0, 5) }} />
       </div>
     </>
   );

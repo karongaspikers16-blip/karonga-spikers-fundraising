@@ -91,7 +91,7 @@ export function ContributionReportForm({ methods, minAmount }: Props) {
         <label className="flex items-start gap-3">
           <input name="show_name" type="checkbox" defaultChecked={typed?.show_name} className="mt-1 size-5 accent-gold" />
           <span className="text-white/85">
-            Thank me by name on the website and in the 8pm announcement. The amount is never shown.
+            Thank me by name on the website and in the daily announcement. The amount is never shown.
           </span>
         </label>
         <label className="block">

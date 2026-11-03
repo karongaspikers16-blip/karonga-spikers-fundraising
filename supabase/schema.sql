@@ -451,8 +451,8 @@ alter table public.campaign_settings
     check (challenge_daily_target between 1 and 100000000),
   add column if not exists challenge_start date not null default date '2026-11-03',
   add column if not exists challenge_end date not null default date '2026-11-10',
-  -- Each challenge day closes at this time (Malawi); later gifts count for the next day.
-  add column if not exists challenge_cutoff time not null default time '20:00' check (challenge_cutoff >= time '12:00'),
+  -- Each challenge day closes at this time (Malawi; '24:00' = midnight); later gifts count for the next day.
+  add column if not exists challenge_cutoff time not null default time '24:00' check (challenge_cutoff >= time '12:00'),
   -- Show "reported, being checked" money on the public bar. Turn off if the form is abused.
   add column if not exists challenge_show_pending boolean not null default true;
 
@@ -536,7 +536,7 @@ alter table public.contributions
   add column if not exists challenge_day date;
 create index if not exists contributions_challenge_day_idx on public.contributions (challenge_day, status);
 
--- The challenge day a moment belongs to. Days close at the cut-off (8pm), so a gift at 9pm counts for tomorrow.
+-- The challenge day a moment belongs to. Days close at the cut-off (midnight by default; with 8pm, a gift at 9pm counts for tomorrow).
 create or replace function public.challenge_day_for(ts timestamptz)
 returns date
 language sql
@@ -545,7 +545,7 @@ set search_path = ''
 as $$
   select ((ts at time zone 'Africa/Blantyre')
           + (interval '24 hours'
-             - coalesce((select challenge_cutoff from public.campaign_settings where id = 1), time '20:00')::interval))::date
+             - coalesce((select challenge_cutoff from public.campaign_settings where id = 1), time '24:00')::interval))::date
 $$;
 
 grant execute on function public.challenge_day_for(timestamptz) to anon, authenticated;

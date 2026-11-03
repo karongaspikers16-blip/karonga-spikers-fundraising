@@ -53,7 +53,7 @@ Push to GitHub, import the repo in Vercel, deploy. Add the two Supabase variable
 | Section | Admin | Treasurer | Secretary |
 |---|---|---|---|
 | Overview: raised vs target, money waiting to check, countdown, drafts | ✅ | ✅ | ✅ (no money details) |
-| Challenge: day results and the ready-made 8pm announcement | ✅ | ✅ | ✅ |
+| Challenge: day results and the ready-made daily announcement | ✅ | ✅ | ✅ |
 | Contributions: record, verify, reject, export CSV | ✅ (and delete) | ✅ | — |
 | Updates: news posts with photos | ✅ | view only | ✅ |
 | Sponsors: add, edit, remove | ✅ | view only | ✅ |
@@ -104,12 +104,14 @@ Changes show on the public website within about a minute. To hide a post again, 
 ## The Daily 50K Challenge
 
 The big target is broken into a daily one: **MWK 50,000 a day from 3 to 10 November**. Anyone can join from
-**MWK 200**. Each day closes at **8pm** (Malawi time) and the result is posted on WhatsApp and Facebook.
+**MWK 200**. Each day runs until **midnight** (Malawi time) and the result is posted on WhatsApp and Facebook
+first thing the next morning.
 
 - **Only verified money counts.** Money reported on the website but not yet checked shows lighter on the
   bar ("being checked") so people can see the day moving, but it never counts in a result.
-- **A day closes at 8pm.** Anything reported on the website after 8pm counts for the next day. When the
-  treasurer records cash, it counts for the **Date paid** on the form.
+- **A day runs until midnight.** Anything reported on the website after midnight counts for the next day. When
+  the treasurer records cash, it counts for the **Date paid** on the form. (The closing time can be changed in
+  Settings.)
 - **Names, never amounts.** Supporters who tick "Thank me by name" are thanked on the website and in the
   announcement, using their **Name to show** (for example "Chikondi M.") if they gave one. The box is
   unticked unless they choose it.
@@ -118,16 +120,16 @@ The big target is broken into a daily one: **MWK 50,000 a day from 3 to 10 Novem
 
 ### Every day, for the treasurer
 
-1. Check **Contributions → To check** a few times a day (for example 12pm, 4pm and 7:30pm). Each card
+1. Check **Contributions → To check** a few times a day (for example 12pm, 5pm and 9pm). Each card
    shows the **Transaction ID** in large letters: find it in your Airtel Money, TNM Mpamba or bank
    messages. If the money arrived with the right amount, tap **Verify**; if not, tap **Reject**.
-2. Have everything checked by **7:45pm**, so it is in the 8pm result. Cash received after 8pm: record it
-   with tomorrow's date.
+2. Before the morning post, check anything that came in late the night before, so it is in the result.
+   Cash is counted for the **Date paid** you enter.
 
-### Every evening at 8pm, for the secretary
+### Every morning, for the secretary
 
-1. Open **Admin → Challenge** (or the challenge box on the Overview). After 8pm it opens on the day that
-   has just closed.
+1. Open **Admin → Challenge** (or the challenge box on the Overview). Until midday it opens on yesterday,
+   the day that has just closed.
 2. If it says entries are still waiting to be checked, ask the treasurer first.
 3. Tap **Copy message** and paste it into the WhatsApp groups and on Facebook, or tap **Share on WhatsApp**.
    The message has the day's result, the running total, the thank-you names and the link.

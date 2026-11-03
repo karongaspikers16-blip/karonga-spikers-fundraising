@@ -3,9 +3,17 @@ import { AlertTriangle, Clock, Star } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { canManageMoney, getStaff } from "@/lib/auth";
 import { formatMoney } from "@/lib/format";
-import { buildAnnouncement, challengeTitle, cutoffLabel, defaultDay, formatDay, type Challenge } from "@/lib/challenge";
+import {
+  buildAnnouncement,
+  challengeTitle,
+  cutoffLabel,
+  defaultDay,
+  formatDay,
+  justClosedDay,
+  resultTime,
+  type Challenge,
+} from "@/lib/challenge";
 import { toChallenge } from "@/lib/challenge-data";
-import { todayInMalawi } from "@/lib/contributions";
 import { AnnouncementPanel } from "@/components/admin/AnnouncementPanel";
 
 type Props = { searchParams: Promise<{ day?: string }> };
@@ -20,7 +28,7 @@ function Stat({ label, value, sub }: { label: string; value: string; sub?: strin
   );
 }
 
-/** Day-by-day results and the ready-made 8pm announcement. Every staff role can open it. */
+/** Day-by-day results and the ready-made daily announcement. Every staff role can open it. */
 export default async function ChallengePage({ searchParams }: Props) {
   const staff = await getStaff();
   if (!staff?.user || !staff.role) return null;
@@ -39,14 +47,10 @@ export default async function ChallengePage({ searchParams }: Props) {
 
   const challenge = toChallenge(data as Challenge);
   const { day: requested } = await searchParams;
-  // Between the cut-off and midnight "today" is already tomorrow; open the day that just closed instead.
-  const calendarDay = todayInMalawi();
-  const justClosed = challenge.today > calendarDay && challenge.days.some((d) => d.day === calendarDay);
+  // For a while after a day closes, open that day: its result is what gets posted.
   const day = challenge.days.some((d) => d.day === requested)
     ? requested!
-    : justClosed
-      ? calendarDay
-      : defaultDay(challenge);
+    : (justClosedDay(challenge) ?? defaultDay(challenge));
   const index = challenge.days.findIndex((d) => d.day === day);
   const current = challenge.days[index];
   const open = day === challenge.today;
@@ -63,7 +67,7 @@ export default async function ChallengePage({ searchParams }: Props) {
         {challengeTitle(challenge.daily_target)}
       </h1>
       <p className="mt-2 text-sm text-ink-soft">
-        Each day closes at {cutoff}. Only verified contributions count. Post the announcement at {cutoff}.
+        Each day closes at {cutoff}. Only verified contributions count. Post the announcement {resultTime(challenge.cutoff)}.
       </p>
 
       {!challenge.enabled && (
@@ -142,7 +146,7 @@ export default async function ChallengePage({ searchParams }: Props) {
               <Clock className="mt-0.5 size-4 shrink-0" aria-hidden />
               <span>
                 This day is still open until {cutoff}, so the message reads as a “so far today” update. Refresh this page
-                at {cutoff} for the final result.
+                after {cutoff} for the final result.
               </span>
             </p>
           )}

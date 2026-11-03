@@ -4,7 +4,7 @@ import { useState } from "react";
 import { Check, Copy } from "lucide-react";
 import { WhatsAppIcon } from "@/components/ui/BrandIcons";
 
-/** The ready-made announcement with copy and WhatsApp buttons, for the secretary's 8pm post. */
+/** The ready-made announcement with copy and WhatsApp buttons, for the secretary's daily post. */
 export function AnnouncementPanel({ text }: { text: string }) {
   const [copied, setCopied] = useState<boolean | null>(null);
 

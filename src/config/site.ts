@@ -133,7 +133,7 @@ export type SiteConfig = {
     maxPhotos: number;
   };
   /**
-   * Wording for the daily challenge card and the 8pm announcement. The daily target,
+   * Wording for the daily challenge card and the daily announcement. The daily target,
    * dates, cut-off and on/off switch are live settings in Admin → Settings.
    */
   challenge: {
@@ -154,7 +154,7 @@ export type SiteConfig = {
 };
 
 export const siteConfig: SiteConfig = {
-  // The live address, used in share links, previews and the 8pm announcement.
+  // The live address, used in share links, previews and the daily announcement.
   siteUrl: "https://karonga-spikers-fundraising.vercel.app",
 
   club: {

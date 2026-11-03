@@ -5,7 +5,7 @@ import { canEditPosts, canManageMoney, getStaff } from "@/lib/auth";
 import { formatDate, formatMoney, getProgress } from "@/lib/format";
 import { methodLabel, summarise, type Contribution } from "@/lib/contributions";
 import type { CampaignSettings } from "@/lib/campaign";
-import { challengePhase, challengeTitle, cutoffLabel, type Challenge } from "@/lib/challenge";
+import { challengePhase, challengeTitle, type Challenge } from "@/lib/challenge";
 import { toChallenge } from "@/lib/challenge-data";
 
 const DAY = 24 * 60 * 60 * 1000;
@@ -139,7 +139,7 @@ export default async function OverviewPage() {
             </span>
           </span>
           <span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-club">
-            {cutoffLabel(challenge.cutoff)} post <ArrowRight className="size-4" aria-hidden />
+            Daily post <ArrowRight className="size-4" aria-hidden />
           </span>
         </Link>
       )}

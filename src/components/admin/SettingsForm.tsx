@@ -3,7 +3,11 @@
 import { useActionState, useState, type ReactNode } from "react";
 import { siteConfig } from "@/config/site";
 import type { CampaignSettings } from "@/lib/campaign";
+import { cutoffLabel, isMidnight } from "@/lib/challenge";
 import { saveSettings } from "@/app/admin/(staff)/settings/actions";
+
+/** Closing times offered for the daily challenge; "24:00" is midnight. */
+const CUTOFFS = ["18:00", "19:00", "20:00", "21:00", "22:00", "23:00", "24:00"];
 
 const field =
   "mt-1.5 block w-full rounded-lg border border-line bg-white px-3.5 py-3 text-base text-ink focus:border-club focus:outline-none";
@@ -96,7 +100,21 @@ export function SettingsForm({ settings }: { settings: CampaignSettings }) {
         <div className="grid gap-4 sm:grid-cols-3">
           {input("challenge_start", "First day", { type: "date", required: true })}
           {input("challenge_end", "Last day", { type: "date", required: true })}
-          {input("challenge_cutoff", "Each day closes at", { type: "time", required: true })}
+          <label className="block">
+            <span className="text-sm font-semibold text-ink">Each day closes at</span>
+            <select
+              name="challenge_cutoff"
+              value={String(values.challenge_cutoff)}
+              onChange={(e) => setValues((v) => ({ ...v, challenge_cutoff: e.target.value }))}
+              className={field}
+            >
+              {[...new Set([...CUTOFFS, String(values.challenge_cutoff)])].sort().map((t) => (
+                <option key={t} value={t}>
+                  {isMidnight(t) ? "Midnight" : cutoffLabel(t)}
+                </option>
+              ))}
+            </select>
+          </label>
         </div>
         <p className="text-xs text-ink-soft">
           Gifts reported on the website after the closing time count for the next day.

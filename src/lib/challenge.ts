@@ -41,8 +41,14 @@ export function challengeTitle(dailyTarget: number) {
   return `Daily ${shortAmount(dailyTarget)} Challenge`;
 }
 
-/** "20:00" -> "8pm", "20:30" -> "8:30pm". */
+/** A cut-off of "24:00" means each day runs until midnight. */
+export function isMidnight(cutoff: string) {
+  return cutoff >= "24:00";
+}
+
+/** "20:00" -> "8pm", "20:30" -> "8:30pm", "24:00" -> "midnight". */
 export function cutoffLabel(cutoff: string) {
+  if (isMidnight(cutoff)) return "midnight";
   const [h, m] = cutoff.split(":").map(Number);
   const hour = h % 12 || 12;
   return `${hour}${m ? `:${String(m).padStart(2, "0")}` : ""}${h < 12 ? "am" : "pm"}`;
@@ -60,9 +66,28 @@ export function daysBetween(from: string, to: string) {
   return Math.round((Date.parse(`${to}T00:00:00Z`) - Date.parse(`${from}T00:00:00Z`)) / 86_400_000);
 }
 
+/** "2026-11-03", 1 -> "2026-11-04". */
+export function addDays(day: string, days: number) {
+  const date = new Date(`${day}T00:00:00Z`);
+  date.setUTCDate(date.getUTCDate() + days);
+  return date.toISOString().slice(0, 10);
+}
+
 /** When a challenge day closes, as an ISO time (Malawi is UTC+2 all year). */
 export function closesAt(day: string, cutoff: string) {
-  return `${day}T${cutoff}:00+02:00`;
+  return isMidnight(cutoff) ? `${addDays(day, 1)}T00:00:00+02:00` : `${day}T${cutoff}:00+02:00`;
+}
+
+/** When the day's result is posted: "at 8pm", or the next morning when days run to midnight. */
+export function resultTime(cutoff: string) {
+  return isMidnight(cutoff) ? "first thing the next morning" : `at ${cutoffLabel(cutoff)}`;
+}
+
+/** The day that closed in the last 12 hours, if any: that is the result the secretary posts. */
+export function justClosedDay(challenge: Challenge, now = Date.now()) {
+  const previous = addDays(challenge.today, -1);
+  if (!challenge.days.some((d) => d.day === previous)) return null;
+  return now - Date.parse(closesAt(previous, challenge.cutoff)) < 12 * 3_600_000 ? previous : null;
 }
 
 export function challengePhase(challenge: Challenge): "before" | "running" | "after" {
@@ -98,7 +123,7 @@ type AnnouncementInput = {
 };
 
 /**
- * The 8pm post for WhatsApp and Facebook (*bold* is WhatsApp formatting). Before the
+ * The daily result post for WhatsApp and Facebook (*bold* is WhatsApp formatting). Before the
  * cut-off it reads as a "so far today" update. Celebrates givers; never shames anyone.
  */
 export function buildAnnouncement({ challenge, day, overall }: AnnouncementInput) {

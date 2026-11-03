@@ -7,6 +7,7 @@ import {
   challengeTotals,
   closesAt,
   cutoffLabel,
+  resultTime,
   formatDay,
   shortAmount,
   type Challenge,
@@ -69,7 +70,7 @@ export function DailyChallenge({ challenge }: { challenge: Challenge }) {
         </h2>
         <p className="mt-3 max-w-2xl text-lg text-white/85">
           Join with as little as <strong className="text-gold">{formatMoney(challenge.min_amount)}</strong>, the price of a
-          drink. Every day is a fresh chance to raise {formatMoney(target)}, and we share the result at {cutoff}.
+          drink. Every day is a fresh chance to raise {formatMoney(target)}, and we share the result {resultTime(challenge.cutoff)}.
         </p>
 
         {phase === "running" && today && <Today challenge={challenge} day={today} cutoff={cutoff} />}

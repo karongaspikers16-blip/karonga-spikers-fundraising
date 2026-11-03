@@ -36,8 +36,8 @@ export async function saveSettings(_: ActionResult | null, formData: FormData): 
   if (!/^\d{4}-\d{2}-\d{2}$/.test(challengeStart) || !/^\d{4}-\d{2}-\d{2}$/.test(challengeEnd) || challengeEnd < challengeStart) {
     return { ok: false, message: "Choose the challenge's first and last day (the last day cannot be before the first)." };
   }
-  if (!/^\d{2}:\d{2}$/.test(cutoff) || cutoff < "12:00") {
-    return { ok: false, message: "Choose a closing time between midday and midnight, e.g. 20:00." };
+  if (!/^\d{2}:\d{2}$/.test(cutoff) || cutoff < "12:00" || cutoff > "24:00") {
+    return { ok: false, message: "Choose a closing time between midday and midnight." };
   }
   if (!Number.isInteger(journeyStep) || journeyStep < 1 || journeyStep > siteConfig.journey.steps.length) {
     return { ok: false, message: "Choose the current journey step." };
