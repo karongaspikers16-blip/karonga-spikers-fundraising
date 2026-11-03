@@ -30,7 +30,7 @@ export function UpdateCard({ post }: { post: UpdatePost }) {
           />
         ) : (
           <div className="grid h-full place-items-center">
-            <VolleyballMark className="size-14 opacity-80" />
+            <VolleyballMark className="size-14" />
           </div>
         )}
       </div>

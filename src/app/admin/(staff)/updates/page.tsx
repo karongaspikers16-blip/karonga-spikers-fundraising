@@ -61,7 +61,7 @@ export default async function AdminUpdatesPage() {
                   {cover ? (
                     <Image src={photoUrl(cover.storage_path)} alt="" fill sizes="80px" className="object-cover" />
                   ) : (
-                    <VolleyballMark className="size-8 opacity-80" />
+                    <VolleyballMark className="size-8" />
                   )}
                 </div>
                 <div className="min-w-0 flex-1 py-0.5">

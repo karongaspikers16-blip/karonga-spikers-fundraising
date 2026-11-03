@@ -1,9 +1,10 @@
-import { BadgeCheck, BusFront, HandCoins, Trophy, Volleyball, type LucideIcon } from "lucide-react";
+import { BadgeCheck, BusFront, HandCoins, Trophy, type LucideIcon } from "lucide-react";
 import { siteConfig, type JourneyIcon } from "@/config/site";
 import { SectionHeading } from "@/components/ui/SectionHeading";
+import { VolleyballMark } from "@/components/ui/VolleyballMark";
 
-const icons: Record<JourneyIcon, LucideIcon> = {
-  qualifiers: Volleyball,
+/** The qualifiers step shows the club's volleyball instead of an icon. */
+const icons: Record<Exclude<JourneyIcon, "qualifiers">, LucideIcon> = {
   qualified: BadgeCheck,
   fundraising: HandCoins,
   travel: BusFront,
@@ -29,7 +30,7 @@ export function Journey({ currentStep }: { currentStep: number }) {
           {journey.steps.map((step, index) => {
             const number = index + 1;
             const state = number < currentStep ? "done" : number === currentStep ? "current" : "next";
-            const Icon = icons[step.icon];
+            const Icon = step.icon === "qualifiers" ? null : icons[step.icon];
 
             const circle =
               state === "done"
@@ -48,7 +49,7 @@ export function Journey({ currentStep }: { currentStep: number }) {
                   <span aria-hidden className="absolute top-14 -bottom-8 left-7 w-0.5 -translate-x-1/2 bg-line lg:hidden" />
                 )}
                 <span className={`relative grid size-14 shrink-0 place-items-center rounded-full ${circle}`}>
-                  <Icon className="size-6" aria-hidden />
+                  {Icon ? <Icon className="size-6" aria-hidden /> : <VolleyballMark className="size-10" />}
                 </span>
                 <div className="pt-1 lg:pt-0">
                   <p className="text-sm font-semibold text-ink-soft">
