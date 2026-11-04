@@ -5,6 +5,7 @@ import { WhySupport } from "@/components/WhySupport";
 import { DonationMethods } from "@/components/DonationMethods";
 import { SponsorshipPackages } from "@/components/SponsorshipPackages";
 import { Journey } from "@/components/Journey";
+import { Partners } from "@/components/Partners";
 import { Contact } from "@/components/Contact";
 import { Footer } from "@/components/Footer";
 import { LatestUpdates } from "@/components/LatestUpdates";
@@ -48,6 +49,7 @@ export default async function HomePage() {
           payOnline={payOnline}
         />
         <SponsorshipPackages sponsors={campaign.sponsors} whatsappNumber={campaign.contact.whatsappNumber} />
+        <Partners />
         <Journey currentStep={campaign.journeyStep} />
         <Contact contact={campaign.contact} />
       </main>

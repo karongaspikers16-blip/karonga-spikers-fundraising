@@ -23,6 +23,7 @@ Fundraising landing page for Karonga Spikers Volleyball Club and supporters help
 - `WhySupport.tsx`: campaign purpose and budget needs (`#campaign`).
 - `DonationMethods.tsx`: mobile money, bank transfer, and giving instructions (`#donate`).
 - `SponsorshipPackages.tsx`: sponsor tiers and confirmed sponsors (`#sponsors`).
+- `Partners.tsx`: "Our partners" (`#partners`) from `siteConfig.partners`; hidden when the list is empty.
 - `Journey.tsx`: tournament journey and current step (`#journey`).
 - `Contact.tsx`: WhatsApp, phone, email, and Facebook (`#contact`).
 - `Footer.tsx`: club identity and social links.

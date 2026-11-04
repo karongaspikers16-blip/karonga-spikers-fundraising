@@ -114,6 +114,15 @@ export type SiteConfig = {
     /** Confirmed sponsors. The "Thank you to our sponsors" strip only appears once this has names. */
     currentSponsors: { name: string; tier: TierId }[];
   };
+  /** Organisations working with the club, shown in "Our partners". The section hides when empty. */
+  partners: {
+    shortName: string;
+    name: string;
+    role: string;
+    /** Image inside /public with its pixel size. */
+    logo: { src: string; width: number; height: number };
+    url: string | null;
+  }[];
   journey: {
     /** 1-based index of the stage the club is at right now. */
     currentStep: number;
@@ -317,6 +326,16 @@ export const siteConfig: SiteConfig = {
     // Example: [{ name: "Karonga Hardware Ltd", tier: "gold" }]
     currentSponsors: [],
   },
+
+  partners: [
+    {
+      shortName: "TWH",
+      name: "Travel with Hawkins",
+      role: "Digital partner: our website and online payments",
+      logo: { src: "/images/travel with hawkins logo.png", width: 2000, height: 2000 },
+      url: "https://www.travelwithhawkins.com",
+    },
+  ],
 
   journey: {
     currentStep: 3,
