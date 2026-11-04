@@ -5,12 +5,12 @@ import { VolleyballMark } from "@/components/ui/VolleyballMark";
 import { CopyButton } from "@/components/ui/CopyButton";
 import { FacebookIcon, WhatsAppIcon } from "@/components/ui/BrandIcons";
 
-type Props = { fundraising: Campaign["fundraising"]; supporterNames: string[] };
+type Props = { fundraising: Campaign["fundraising"]; supporterNames: string[]; contributeHref?: string };
 
 /** Shown when more names than this have opted in; the rest are summarised as "and N more". */
 const MAX_NAMES = 40;
 
-export function FundraisingProgress({ fundraising, supporterNames }: Props) {
+export function FundraisingProgress({ fundraising, supporterNames, contributeHref = "#donate" }: Props) {
   const { percent, label, remaining } = getProgress(fundraising.raised, fundraising.target);
   const share = shareLinks();
 
@@ -96,7 +96,7 @@ export function FundraisingProgress({ fundraising, supporterNames }: Props) {
 
           <div className="flex flex-col gap-3 lg:items-end">
             <a
-              href="#donate"
+              href={contributeHref}
               className="inline-flex items-center justify-center rounded-lg bg-club px-8 py-4 text-lg font-bold text-white transition-colors hover:bg-forest"
             >
               Contribute Now

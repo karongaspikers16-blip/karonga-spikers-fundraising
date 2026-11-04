@@ -24,7 +24,9 @@ export type JourneyIcon = "qualifiers" | "qualified" | "fundraising" | "travel" 
 
 export type TierId = "gold" | "silver" | "bronze";
 
-export type ContributionMethod = "airtel_money" | "tnm_mpamba" | "bank" | "cash" | "in_kind" | "other";
+export type ContributionMethod = "airtel_money" | "tnm_mpamba" | "bank" | "cash" | "in_kind" | "other" | "paychangu";
+
+export type SupporterType = "supporter" | "student" | "former_player" | "business" | "other";
 
 export type UpdateCategory = "training" | "fundraising" | "sponsors" | "travel" | "match_day" | "general";
 
@@ -141,6 +143,22 @@ export type SiteConfig = {
     /** The day the team leaves for the tournament (YYYY-MM-DD), for "N days until we travel". */
     travelsOn: string;
     signOff: string;
+  };
+  /**
+   * "Pay online" through PayChangu's hosted checkout. Needs PAYCHANGU_SECRET_KEY on the server;
+   * without it the site keeps the manual payment details only.
+   */
+  onlinePayments: {
+    /** Shown at the top of the PayChangu checkout. */
+    checkoutTitle: string;
+    checkoutDescription: string;
+    /** Sent with every payment so it can be traced in the PayChangu dashboard. */
+    meta: { campaign: string; club: string };
+    /** Quick-pick amounts on /donate, in kwacha. */
+    quickAmounts: number[];
+    supporterTypes: Record<SupporterType, string>;
+    /** Under the pay button: who processes the payment and where the money goes. */
+    partnerNote: string;
   };
   contact: {
     isSample: boolean;
@@ -343,6 +361,7 @@ export const siteConfig: SiteConfig = {
     cash: "Cash",
     in_kind: "In kind (goods or services)",
     other: "Other",
+    paychangu: "Online (PayChangu)",
   },
 
   // News posts are written in the admin area (/admin) and stored in Supabase.
@@ -363,6 +382,22 @@ export const siteConfig: SiteConfig = {
     tagline: "Every kwacha counts. Together, we can make Karonga proud.",
     travelsOn: "2026-11-12",
     signOff: "Together, we can make Karonga proud. Yours in sport! 🏐",
+  },
+
+  onlinePayments: {
+    checkoutTitle: "Karonga Spikers Volleyball Club",
+    checkoutDescription: "Contribution to the team's trip to the Raiply National Volleyball Tournament, Mzuzu",
+    meta: { campaign: "national-tournament-2026", club: "Karonga Spikers Volleyball Club" },
+    quickAmounts: [500, 1000, 5000, 10000],
+    supporterTypes: {
+      supporter: "Supporter",
+      student: "Student",
+      former_player: "Former player",
+      business: "Business",
+      other: "Other",
+    },
+    partnerNote:
+      "Online payments are processed securely by PayChangu through Travel with Hawkins, the club's digital partner, and transferred to the Club Treasurer, Abel Chilongo. You may see 'Travel with Hawkins' on the payment screen.",
   },
 
   // Used when Supabase is not set up; the live values are edited in /admin/settings.

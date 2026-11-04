@@ -13,6 +13,7 @@ import { DailyChallenge } from "@/components/DailyChallenge";
 import { getCampaign } from "@/lib/campaign";
 import { getChallenge } from "@/lib/challenge-data";
 import { isSupabaseConfigured } from "@/lib/supabase/env";
+import { onlinePaymentsEnabled } from "@/lib/paychangu";
 
 // Figures and news come from Supabase; refresh the cached page at most once a minute.
 export const revalidate = 60;
@@ -23,14 +24,20 @@ export default async function HomePage() {
     getPublishedUpdates(3),
     getChallenge(),
   ]);
+  // "Pay online" buttons go to /donate; without PayChangu they point at the payment details.
+  const payOnline = onlinePaymentsEnabled();
 
   return (
     <>
       <Navbar showUpdates={latest.length > 0} />
       <main>
-        <Hero />
-        <FundraisingProgress fundraising={campaign.fundraising} supporterNames={campaign.supporterNames} />
-        {challenge?.enabled && challenge.days.length > 0 && <DailyChallenge challenge={challenge} />}
+        <Hero donateHref={payOnline ? "/donate" : "#donate"} />
+        <FundraisingProgress
+          fundraising={campaign.fundraising}
+          supporterNames={campaign.supporterNames}
+          contributeHref={payOnline ? "/donate" : "#donate"}
+        />
+        {challenge?.enabled && challenge.days.length > 0 && <DailyChallenge challenge={challenge} payOnline={payOnline} />}
         <WhySupport />
         <LatestUpdates posts={latest} />
         <DonationMethods
@@ -38,6 +45,7 @@ export default async function HomePage() {
           contact={campaign.contact}
           showReportForm={isSupabaseConfigured}
           minAmount={campaign.fundraising.minContribution}
+          payOnline={payOnline}
         />
         <SponsorshipPackages sponsors={campaign.sponsors} whatsappNumber={campaign.contact.whatsappNumber} />
         <Journey currentStep={campaign.journeyStep} />

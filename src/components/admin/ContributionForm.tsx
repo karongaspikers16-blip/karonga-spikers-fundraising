@@ -35,10 +35,21 @@ export function ContributionForm({ contribution }: { contribution?: Contribution
   const set = <K extends keyof typeof values>(key: K, value: (typeof values)[K]) =>
     setValues((v) => ({ ...v, [key]: value }));
   const needsReference = ["airtel_money", "tnm_mpamba", "bank"].includes(values.method);
+  // Online payments: PayChangu decides whether it was paid and how much; staff can change the rest.
+  const online = contribution?.source === "online";
 
   return (
     <form action={action} className="space-y-5 rounded-2xl bg-white p-5 ring-1 ring-line sm:p-6">
       {contribution && <input type="hidden" name="id" value={contribution.id} />}
+      {online && (
+        <>
+          <input type="hidden" name="method" value={values.method} />
+          <input type="hidden" name="status" value={values.status} />
+          <p className="rounded-lg bg-club-tint p-3 text-sm text-forest">
+            Paid online and confirmed by PayChangu, so the amount, method, reference and status cannot be changed here.
+          </p>
+        </>
+      )}
 
       <label className="block">
         <span className="text-sm font-semibold text-ink">Donor name</span>
@@ -60,6 +71,7 @@ export function ContributionForm({ contribution }: { contribution?: Contribution
             required
             inputMode="numeric"
             value={values.amount}
+            readOnly={online}
             onChange={(e) => set("amount", e.target.value)}
             placeholder="e.g. 25,000"
             className={`${field} tabular-nums`}
@@ -82,12 +94,13 @@ export function ContributionForm({ contribution }: { contribution?: Contribution
         <label className="block">
           <span className="text-sm font-semibold text-ink">Paid with</span>
           <select
-            name="method"
+            name={online ? undefined : "method"}
+            disabled={online}
             value={values.method}
             onChange={(e) => set("method", e.target.value as ContributionMethod)}
             className={field}
           >
-            {CONTRIBUTION_METHODS.map((m) => (
+            {CONTRIBUTION_METHODS.filter((m) => online || m !== "paychangu").map((m) => (
               <option key={m} value={m}>
                 {methodLabel(m)}
               </option>
@@ -103,6 +116,7 @@ export function ContributionForm({ contribution }: { contribution?: Contribution
             maxLength={80}
             required={needsReference && !contribution}
             value={values.reference}
+            readOnly={online}
             onChange={(e) => set("reference", e.target.value)}
             className={field}
           />
@@ -126,7 +140,8 @@ export function ContributionForm({ contribution }: { contribution?: Contribution
       <label className="block">
         <span className="text-sm font-semibold text-ink">Status</span>
         <select
-          name="status"
+          name={online ? undefined : "status"}
+          disabled={online}
           value={values.status}
           onChange={(e) => set("status", e.target.value as ContributionStatus)}
           className={field}

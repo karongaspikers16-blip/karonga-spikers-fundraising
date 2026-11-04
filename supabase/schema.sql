@@ -754,7 +754,9 @@ as $$
     select c.challenge_day, c.status, c.amount, c.show_name, c.donor_name, c.verified_at,
            coalesce(c.display_name, c.donor_name) as shown
     from public.contributions c, s
+    -- An unpaid online checkout is not "being checked": it only counts once PayChangu confirms it.
     where c.challenge_day between s.challenge_start and s.challenge_end and c.status <> 'rejected'
+      and not (c.source = 'online' and c.status = 'pending')
   ),
   days as (
     select d::date as day from s, generate_series(s.challenge_start, s.challenge_end, interval '1 day') d
@@ -801,3 +803,291 @@ grant execute on function public.challenge_summary() to anon, authenticated;
 
 -- Give contributions made before section 5 their challenge day (the trigger fills it in on update).
 update public.contributions set updated_at = updated_at where challenge_day is null;
+
+
+-- =========================================================================
+-- 6. Online payments (PayChangu)
+-- =========================================================================
+-- Supporters pay on PayChangu's hosted checkout. The merchant account belongs to Travel with
+-- Hawkins (the club's digital partner), which transfers the money to the club treasurer.
+-- Every club transaction has tx_ref 'KSVC-<uuid>'; Travel with Hawkins ignores those.
+--
+-- Only the website server can start or settle an online payment. It proves this with a token
+-- it derives from PAYCHANGU_SECRET_KEY; the database keeps only the token's hash, stored once by
+-- the admin with paychangu_link() (Admin -> Online -> Connect). Nobody else can mark a payment paid.
+--   paychangu_start()    the pending contribution and its tx_ref, before the checkout opens
+--   paychangu_settle()   paid / failed / cancelled, after the server verified it with PayChangu
+--   paychangu_receipt()  status and amount for the thank-you page (the tx_ref is unguessable)
+
+-- 6.1 Contributions: online payments ---------------------------------------
+alter table public.contributions drop constraint if exists contributions_method_check;
+alter table public.contributions add constraint contributions_method_check
+  check (method in ('airtel_money', 'tnm_mpamba', 'bank', 'cash', 'in_kind', 'other', 'paychangu'));
+alter table public.contributions drop constraint if exists contributions_source_check;
+alter table public.contributions add constraint contributions_source_check
+  check (source in ('public_form', 'staff', 'online'));
+
+-- tx_ref: 'KSVC-<uuid>'. paychangu_status: initiated -> success | failed | cancelled.
+-- confirmed_by: 'paychangu' when PayChangu confirmed it (shown as "Auto-verified").
+alter table public.contributions
+  add column if not exists tx_ref text
+    check (tx_ref is null or tx_ref ~ '^KSVC-[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$'),
+  add column if not exists paychangu_status text
+    check (paychangu_status is null or paychangu_status in ('initiated', 'success', 'failed', 'cancelled')),
+  add column if not exists confirmed_by text check (confirmed_by is null or confirmed_by = 'paychangu'),
+  add column if not exists donor_email text check (donor_email is null or char_length(donor_email) <= 120),
+  add column if not exists supporter_type text
+    check (supporter_type is null or supporter_type in ('supporter', 'student', 'former_player', 'business', 'other')),
+  add column if not exists organisation text check (organisation is null or char_length(organisation) <= 120),
+  add column if not exists campaign text not null default 'general' check (char_length(campaign) between 1 and 40);
+
+create unique index if not exists contributions_tx_ref_key on public.contributions (tx_ref);
+
+-- Online payments come only from the website server, and only they use PayChangu.
+alter table public.contributions drop constraint if exists contributions_online_check;
+alter table public.contributions add constraint contributions_online_check
+  check ((method = 'paychangu') = (source = 'online') and (source = 'online') = (tx_ref is not null));
+
+-- Staff may change the name, thank-you choice and note of an online payment, but never whether
+-- it was paid, how much, or its PayChangu details: only paychangu_settle() can.
+create or replace function public.contributions_online_guard()
+returns trigger
+language plpgsql
+set search_path = ''
+as $$
+begin
+  if old.source = 'online' and coalesce(current_setting('ksvc.paychangu', true), '') <> 'settle'
+     and (new.status, new.amount, new.method, new.tx_ref, new.paychangu_status, new.confirmed_by, new.reference, new.campaign)
+         is distinct from
+         (old.status, old.amount, old.method, old.tx_ref, old.paychangu_status, old.confirmed_by, old.reference, old.campaign) then
+    raise exception 'online_payment_locked' using errcode = 'check_violation',
+      hint = 'Online payments are confirmed by PayChangu. Use "Re-check pending online payments" instead.';
+  end if;
+  return new;
+end $$;
+
+drop trigger if exists contributions_online_guard on public.contributions;
+create trigger contributions_online_guard
+  before update on public.contributions
+  for each row execute function public.contributions_online_guard();
+
+-- 6.2 The server's token (hash only) -----------------------------------------
+create table if not exists public.payment_secrets (
+  id smallint primary key default 1 check (id = 1),
+  token_hash bytea not null,
+  linked_by uuid references auth.users (id) on delete set null,
+  linked_at timestamptz not null default now()
+);
+alter table public.payment_secrets enable row level security;
+revoke all on public.payment_secrets from anon, authenticated;
+
+create or replace function public.paychangu_token_ok(p_token text)
+returns boolean
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select char_length(coalesce(p_token, '')) >= 32
+     and exists (select 1 from public.payment_secrets
+                 where id = 1 and token_hash = sha256(convert_to(p_token, 'UTF8')))
+$$;
+revoke execute on function public.paychangu_token_ok(text) from public, anon, authenticated;
+
+-- Admin only: store the hash of the server's token (again after the PayChangu key changes).
+create or replace function public.paychangu_link(p_token text)
+returns void
+language plpgsql
+security definer
+set search_path = ''
+as $$
+begin
+  if coalesce(public.app_role(), '') <> 'admin' then
+    raise exception 'not_allowed' using errcode = 'insufficient_privilege';
+  end if;
+  if char_length(coalesce(p_token, '')) < 32 then
+    raise exception 'invalid_token' using errcode = 'check_violation';
+  end if;
+  insert into public.payment_secrets (id, token_hash, linked_by, linked_at)
+  values (1, sha256(convert_to(p_token, 'UTF8')), auth.uid(), now())
+  on conflict (id) do update set token_hash = excluded.token_hash, linked_by = excluded.linked_by, linked_at = now();
+end $$;
+revoke execute on function public.paychangu_link(text) from public, anon;
+grant execute on function public.paychangu_link(text) to authenticated;
+
+-- Admin and treasurer: 'ok', 'missing' (never linked) or 'different' (the key changed: link again).
+create or replace function public.paychangu_link_status(p_token text)
+returns text
+language plpgsql
+stable
+security definer
+set search_path = ''
+as $$
+begin
+  if not public.can_manage_money() then
+    raise exception 'not_allowed' using errcode = 'insufficient_privilege';
+  end if;
+  if not exists (select 1 from public.payment_secrets where id = 1) then return 'missing'; end if;
+  return case when public.paychangu_token_ok(p_token) then 'ok' else 'different' end;
+end $$;
+revoke execute on function public.paychangu_link_status(text) from public, anon;
+grant execute on function public.paychangu_link_status(text) to authenticated;
+
+-- 6.3 Start, settle, receipt ---------------------------------------------------
+create or replace function public.paychangu_start(
+  p_token text,
+  p_name text,
+  p_phone text,
+  p_email text,
+  p_amount bigint,
+  p_supporter_type text,
+  p_organisation text,
+  p_show_name boolean,
+  p_message text,
+  p_note text default null
+)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  new_ref text := 'KSVC-' || gen_random_uuid()::text;
+begin
+  if not public.paychangu_token_ok(p_token) then
+    raise exception 'not_allowed' using errcode = 'insufficient_privilege';
+  end if;
+  if char_length(trim(coalesce(p_name, ''))) not between 1 and 120 then
+    raise exception 'invalid_name' using errcode = 'check_violation';
+  end if;
+  if p_amount is null or p_amount > 10000000
+     or p_amount < coalesce((select min_contribution from public.campaign_settings where id = 1), 200) then
+    raise exception 'invalid_amount' using errcode = 'check_violation';
+  end if;
+  if (select count(*) from public.contributions
+      where source = 'online' and created_at > now() - interval '1 hour') >= 300 then
+    raise exception 'too_many' using errcode = 'check_violation';
+  end if;
+
+  insert into public.contributions
+    (donor_name, donor_phone, donor_email, amount, method, tx_ref, paychangu_status, supporter_type,
+     organisation, show_name, message, note, campaign, status, source, created_by)
+  values (
+    trim(p_name),
+    nullif(left(trim(coalesce(p_phone, '')), 30), ''),
+    nullif(left(trim(coalesce(p_email, '')), 120), ''),
+    p_amount,
+    'paychangu',
+    new_ref,
+    'initiated',
+    case when p_supporter_type in ('supporter', 'student', 'former_player', 'business', 'other') then p_supporter_type end,
+    nullif(left(trim(coalesce(p_organisation, '')), 120), ''),
+    coalesce(p_show_name, false),
+    nullif(left(trim(coalesce(p_message, '')), 300), ''),
+    nullif(left(trim(coalesce(p_note, '')), 500), ''),
+    'general',
+    'pending',
+    'online',
+    auth.uid()
+  );
+  return new_ref;
+end $$;
+revoke execute on function public.paychangu_start(text, text, text, text, bigint, text, text, boolean, text, text) from public;
+grant execute on function public.paychangu_start(text, text, text, text, bigint, text, text, boolean, text, text)
+  to anon, authenticated;
+
+-- p_outcome 'success' needs the amount and currency PayChangu reported. Safe to call again:
+-- returns 'confirmed' once, then 'already'. Also 'failed', 'cancelled', 'ignored', 'mismatch', 'unknown'.
+create or replace function public.paychangu_settle(
+  p_token text,
+  p_tx_ref text,
+  p_outcome text,
+  p_amount numeric default null,
+  p_currency text default null,
+  p_reference text default null
+)
+returns text
+language plpgsql
+security definer
+set search_path = ''
+as $$
+declare
+  c public.contributions;
+begin
+  if not public.paychangu_token_ok(p_token) then
+    raise exception 'not_allowed' using errcode = 'insufficient_privilege';
+  end if;
+  select * into c from public.contributions where tx_ref = p_tx_ref and source = 'online' for update;
+  if not found then return 'unknown'; end if;
+
+  if p_outcome = 'success' then
+    if c.status = 'verified' then return 'already'; end if;
+    if upper(coalesce(p_currency, '')) <> 'MWK' or p_amount is null or p_amount < c.amount then
+      return 'mismatch';
+    end if;
+    -- Opens contributions_online_guard for this one update only.
+    perform set_config('ksvc.paychangu', 'settle', true);
+    update public.contributions
+      set status = 'verified', paychangu_status = 'success', confirmed_by = 'paychangu',
+          reference = coalesce(nullif(left(trim(coalesce(p_reference, '')), 80), ''), reference)
+      where id = c.id;
+    perform set_config('ksvc.paychangu', '', true);
+    return 'confirmed';
+  elsif p_outcome in ('failed', 'cancelled') then
+    if c.status <> 'pending' then return 'ignored'; end if;
+    perform set_config('ksvc.paychangu', 'settle', true);
+    update public.contributions set status = 'rejected', paychangu_status = p_outcome where id = c.id;
+    perform set_config('ksvc.paychangu', '', true);
+    return p_outcome;
+  end if;
+  raise exception 'invalid_outcome' using errcode = 'check_violation';
+end $$;
+revoke execute on function public.paychangu_settle(text, text, text, numeric, text, text) from public;
+grant execute on function public.paychangu_settle(text, text, text, numeric, text, text) to anon, authenticated;
+
+-- For the thank-you page: whether it is confirmed, the amount and a first name. Nothing else.
+create or replace function public.paychangu_receipt(p_tx_ref text)
+returns jsonb
+language sql
+stable
+security definer
+set search_path = ''
+as $$
+  select jsonb_build_object(
+    'status', c.status,
+    'amount', c.amount,
+    'first_name', split_part(trim(c.donor_name), ' ', 1)
+  )
+  from public.contributions c
+  where c.tx_ref = p_tx_ref and c.source = 'online'
+$$;
+revoke execute on function public.paychangu_receipt(text) from public;
+grant execute on function public.paychangu_receipt(text) to anon, authenticated;
+
+-- 6.4 Money passed on to the club ----------------------------------------------
+-- Travel with Hawkins receives the online payments; the treasurer logs each transfer to the club.
+create table if not exists public.paychangu_transfers (
+  id uuid primary key default gen_random_uuid(),
+  amount bigint not null check (amount > 0 and amount <= 100000000),
+  transferred_on date not null default ((now() at time zone 'Africa/Blantyre')::date),
+  reference text check (reference is null or char_length(reference) <= 80),
+  note text check (note is null or char_length(note) <= 300),
+  recorded_by uuid default auth.uid() references auth.users (id) on delete set null,
+  created_at timestamptz not null default now()
+);
+alter table public.paychangu_transfers enable row level security;
+
+drop policy if exists "paychangu_transfers: money read" on public.paychangu_transfers;
+create policy "paychangu_transfers: money read" on public.paychangu_transfers
+  for select to authenticated using (public.can_manage_money());
+
+drop policy if exists "paychangu_transfers: money insert" on public.paychangu_transfers;
+create policy "paychangu_transfers: money insert" on public.paychangu_transfers
+  for insert to authenticated with check (public.can_manage_money() and recorded_by = auth.uid());
+
+drop policy if exists "paychangu_transfers: admin delete" on public.paychangu_transfers;
+create policy "paychangu_transfers: admin delete" on public.paychangu_transfers
+  for delete to authenticated using (public.app_role() = 'admin');
+
+revoke all on public.paychangu_transfers from anon;
+grant select, insert, delete on public.paychangu_transfers to authenticated;

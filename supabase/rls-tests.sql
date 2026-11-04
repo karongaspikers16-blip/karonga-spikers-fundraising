@@ -4,7 +4,7 @@
 -- Run in Supabase Dashboard -> SQL Editor AFTER schema.sql.
 -- Everything happens inside one transaction that is rolled back at the
 -- end, so no test users, posts or files are left behind.
--- Expected result: a list of "PASS" notices (1 to 13c) and no exception.
+-- Expected result: a list of "PASS" notices (1 to 14d) and no exception.
 -- =====================================================================
 
 begin;
@@ -213,7 +213,7 @@ end $$;
 -- 9. Money: the public can only report (pending) and read totals; pending money never counts.
 select pg_temp.act_as_public();
 do $$
-declare s jsonb;
+declare s jsonb; before bigint := (public.campaign_summary()->>'raised')::bigint;
 begin
   perform public.submit_contribution('Public Donor', '0999000000', 5000, 'airtel_money', 'TESTREF001', true, 'Go team');
   begin
@@ -245,7 +245,7 @@ begin
   exception when insufficient_privilege then null;
   end;
   s := public.campaign_summary();
-  if (s->>'raised')::bigint <> 0 then raise exception 'FAIL: pending money counted in the public total'; end if;
+  if (s->>'raised')::bigint <> before then raise exception 'FAIL: pending money counted in the public total'; end if;
   if s ? 'updated_by' or (s->'settings') ? 'updated_by' then raise exception 'FAIL: summary exposes updated_by'; end if;
   raise notice 'PASS 9: public can report (pending only), cannot read or change money, totals ignore pending';
 end $$;
@@ -267,9 +267,10 @@ end $$;
 -- 11. The treasurer records and verifies; verified money counts; cannot delete or change settings.
 select pg_temp.act_as('00000000-0000-4000-8000-0000000000b2');
 do $$
-declare n integer;
+-- Compared with the totals before, so real contributions already in the database do not matter.
+declare n integer; before bigint := (public.campaign_summary()->>'raised')::bigint;
 begin
-  if (select count(*) from public.contributions where status = 'pending') <> 1 then
+  if (select count(*) from public.contributions where status = 'pending' and reference = 'TESTREF001') <> 1 then
     raise exception 'FAIL: treasurer should see the pending report';
   end if;
   update public.contributions set status = 'verified' where reference = 'TESTREF001';
@@ -278,8 +279,8 @@ begin
   end if;
   insert into public.contributions (donor_name, amount, method, status, show_name)
     values ('Cash Donor', 20000, 'cash', 'verified', false);
-  if (public.campaign_summary()->>'raised')::bigint <> 25000 then raise exception 'FAIL: verified total should be 25000'; end if;
-  if (public.campaign_summary()->'names') <> '["Public Donor"]'::jsonb then
+  if (public.campaign_summary()->>'raised')::bigint <> before + 25000 then raise exception 'FAIL: verified total should grow by 25000'; end if;
+  if not (public.campaign_summary()->'names') ? 'Public Donor' or (public.campaign_summary()->'names') ? 'Cash Donor' then
     raise exception 'FAIL: only opted-in names should be listed';
   end if;
   begin
@@ -378,6 +379,126 @@ begin
   end if;
   if (select count(*) from public.contributions) <> 0 then raise exception 'FAIL: secretary can see contributions'; end if;
   raise notice 'PASS 13c: secretary reads the challenge summary but still cannot see contributions';
+end $$;
+
+-- 14. Online payments (PayChangu): only the server's token can start or settle a payment, a payment
+--     counts once, staff cannot change whether it was paid, and transfers are money-roles only.
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000b2');
+do $$
+begin
+  begin
+    perform public.paychangu_link('test-token-0123456789abcdef0123456789abcdef');
+    raise exception 'FAIL: the treasurer should not be able to connect online payments';
+  exception when insufficient_privilege then null;
+  end;
+end $$;
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000d4');
+select public.paychangu_link('test-token-0123456789abcdef0123456789abcdef');
+
+select pg_temp.act_as_public();
+do $$
+declare ref text; ref2 text; before bigint; s jsonb;
+begin
+  begin
+    perform public.paychangu_start('wrong-token-0123456789abcdef0123456789', 'Faker', null, null, 5000, 'supporter', null, true, null);
+    raise exception 'FAIL: starting a payment without the server token should fail';
+  exception when insufficient_privilege then null;
+  end;
+
+  before := (public.campaign_summary()->>'raised')::bigint;
+  s := public.challenge_summary();
+  ref := public.paychangu_start('test-token-0123456789abcdef0123456789abcdef', 'Online Tester', '0991000000',
+                                null, 1000, 'student', 'Karonga CDSS', true, 'Go Spikers');
+  if ref !~ '^KSVC-' then raise exception 'FAIL: tx_ref should start with KSVC- (got %)', ref; end if;
+
+  if public.challenge_summary() is distinct from s then
+    raise exception 'FAIL: an unpaid online checkout should not show as "being checked"';
+  end if;
+
+  begin
+    perform public.paychangu_settle('wrong-token-0123456789abcdef0123456789', ref, 'success', 1000, 'MWK', 'X1');
+    raise exception 'FAIL: settling without the server token should fail';
+  exception when insufficient_privilege then null;
+  end;
+  if public.paychangu_settle('test-token-0123456789abcdef0123456789abcdef', ref, 'success', 999, 'MWK', 'X1') <> 'mismatch'
+     or public.paychangu_settle('test-token-0123456789abcdef0123456789abcdef', ref, 'success', 1000, 'USD', 'X1') <> 'mismatch' then
+    raise exception 'FAIL: a lower amount or another currency must not confirm';
+  end if;
+  if public.paychangu_settle('test-token-0123456789abcdef0123456789abcdef', ref, 'success', 1000, 'MWK', 'PCREF1') <> 'confirmed'
+     or public.paychangu_settle('test-token-0123456789abcdef0123456789abcdef', ref, 'success', 1000, 'MWK', 'PCREF1') <> 'already' then
+    raise exception 'FAIL: the first success should confirm and a replay should say already';
+  end if;
+  if (public.campaign_summary()->>'raised')::bigint <> before + 1000 then
+    raise exception 'FAIL: a confirmed online payment should add exactly its amount once';
+  end if;
+  if not (public.campaign_summary()->'names') ? 'Online Tester' then
+    raise exception 'FAIL: an online supporter who chose to be thanked should be named';
+  end if;
+  if (public.paychangu_receipt(ref)->>'status') <> 'verified' then raise exception 'FAIL: receipt should say verified'; end if;
+
+  -- Cancelled, then PayChangu says it was paid after all: it still counts.
+  ref2 := public.paychangu_start('test-token-0123456789abcdef0123456789abcdef', 'Late Payer', '0881000000',
+                                 'late@test.local', 500, 'supporter', null, false, null);
+  if public.paychangu_settle('test-token-0123456789abcdef0123456789abcdef', ref2, 'cancelled') <> 'cancelled'
+     or public.paychangu_settle('test-token-0123456789abcdef0123456789abcdef', ref2, 'success', 500, 'MWK', 'PCREF2') <> 'confirmed' then
+    raise exception 'FAIL: a cancelled payment that PayChangu later confirms should count';
+  end if;
+  raise notice 'PASS 14a: online payments need the server token, confirm once, and check amount and currency';
+end $$;
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000b2');
+do $$
+begin
+  if (select confirmed_by from public.contributions where reference = 'PCREF1') <> 'paychangu' then
+    raise exception 'FAIL: the treasurer should see the auto-verified payment';
+  end if;
+  begin
+    update public.contributions set status = 'pending' where reference = 'PCREF1';
+    raise exception 'FAIL: staff should not be able to un-verify an online payment';
+  exception when check_violation then null;
+  end;
+  begin
+    update public.contributions set amount = 5 where reference = 'PCREF1';
+    raise exception 'FAIL: staff should not be able to change an online amount';
+  exception when check_violation then null;
+  end;
+  update public.contributions set note = 'Checked the statement', show_name = false where reference = 'PCREF1';
+  begin
+    insert into public.contributions (donor_name, amount, method, status) values ('Fake online', 100, 'paychangu', 'verified');
+    raise exception 'FAIL: staff should not be able to record a PayChangu payment by hand';
+  exception when check_violation then null;
+  end;
+  insert into public.paychangu_transfers (amount, reference) values (1400, 'TWH-TRANSFER-1');
+  raise notice 'PASS 14b: staff can edit the name and note of an online payment but not whether it was paid; transfers logged';
+end $$;
+
+select pg_temp.act_as('00000000-0000-4000-8000-0000000000a1');
+do $$
+begin
+  if (select count(*) from public.paychangu_transfers) <> 0 then raise exception 'FAIL: secretary can see transfers'; end if;
+  begin
+    insert into public.paychangu_transfers (amount) values (1);
+    raise exception 'FAIL: secretary should not log transfers';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'PASS 14c: the secretary cannot see or log transfers';
+end $$;
+
+select pg_temp.act_as_public();
+do $$
+begin
+  begin
+    perform count(*) from public.paychangu_transfers;
+    raise exception 'FAIL: the public should not read transfers';
+  exception when insufficient_privilege then null;
+  end;
+  begin
+    perform count(*) from public.payment_secrets;
+    raise exception 'FAIL: the public should not read payment_secrets';
+  exception when insufficient_privilege then null;
+  end;
+  raise notice 'PASS 14d: transfers and the token hash are hidden from the public';
 end $$;
 
 rollback;

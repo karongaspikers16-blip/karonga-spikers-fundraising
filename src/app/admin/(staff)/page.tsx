@@ -1,9 +1,9 @@
 import Link from "next/link";
-import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, Flame, HandCoins, Newspaper, Plus } from "lucide-react";
+import { AlertTriangle, ArrowRight, CalendarDays, CheckCircle2, CreditCard, Flame, HandCoins, Newspaper, Plus } from "lucide-react";
 import { siteConfig } from "@/config/site";
 import { canEditPosts, canManageMoney, getStaff } from "@/lib/auth";
 import { formatDate, formatMoney, getProgress } from "@/lib/format";
-import { methodLabel, summarise, type Contribution } from "@/lib/contributions";
+import { awaitingOnline, methodLabel, summarise, type Contribution } from "@/lib/contributions";
 import type { CampaignSettings } from "@/lib/campaign";
 import { challengePhase, challengeTitle, type Challenge } from "@/lib/challenge";
 import { toChallenge } from "@/lib/challenge-data";
@@ -35,13 +35,14 @@ export default async function OverviewPage() {
   const money = canManageMoney(role);
   const editor = canEditPosts(role);
 
-  const [summaryRes, contributionsRes, postsRes, challengeRes] = await Promise.all([
+  const [summaryRes, contributionsRes, postsRes, challengeRes, transfersRes] = await Promise.all([
     db.rpc("campaign_summary"),
     money
       ? db.from("contributions").select("*").order("created_at", { ascending: false }).limit(2000)
       : Promise.resolve({ data: null }),
     db.from("updates").select("id, title, published, created_at").order("created_at", { ascending: false }),
     db.rpc("challenge_summary"),
+    money ? db.from("paychangu_transfers").select("amount") : Promise.resolve({ data: null }),
   ]);
 
   const summary = summaryRes.data as { settings: CampaignSettings; raised: number; contributions: number } | null;
@@ -56,6 +57,11 @@ export default async function OverviewPage() {
   const thisWeek = contributions
     .filter((c) => c.status === "verified" && c.verified_at && new Date(c.verified_at).getTime() > weekAgo)
     .reduce((sum, c) => sum + Number(c.amount), 0);
+  const onlineConfirmed = contributions
+    .filter((c) => c.source === "online" && c.status === "verified")
+    .reduce((sum, c) => sum + Number(c.amount), 0);
+  const onlineOwed =
+    onlineConfirmed - ((transfersRes.data ?? []) as { amount: number }[]).reduce((sum, t) => sum + Number(t.amount), 0);
   const days = daysUntil(siteConfig.tournament.startsOn);
   const drafts = posts.filter((p) => !p.published);
 
@@ -144,6 +150,23 @@ export default async function OverviewPage() {
         </Link>
       )}
 
+      {money && onlineConfirmed > 0 && (
+        <Link
+          href="/admin/online"
+          className="mt-3 flex items-center justify-between gap-3 rounded-2xl bg-white p-4 ring-1 ring-line hover:ring-club"
+        >
+          <span className="min-w-0">
+            <span className="flex items-center gap-1.5 text-sm text-ink-soft">
+              <CreditCard className="size-4 text-club" aria-hidden /> Online payments owed to the club
+            </span>
+            <span className="block font-display text-2xl font-bold tabular-nums text-forest">{formatMoney(onlineOwed)}</span>
+          </span>
+          <span className="inline-flex shrink-0 items-center gap-1 text-sm font-bold text-club">
+            Log transfer <ArrowRight className="size-4" aria-hidden />
+          </span>
+        </Link>
+      )}
+
       <dl className="mt-3 grid grid-cols-2 gap-3">
         {money && (
           <>
@@ -186,7 +209,7 @@ export default async function OverviewPage() {
             </Link>
           </div>
           <ul className="mt-3 divide-y divide-line rounded-2xl bg-white ring-1 ring-line">
-            {contributions.slice(0, 5).map((c) => (
+            {contributions.filter((c) => !awaitingOnline(c)).slice(0, 5).map((c) => (
               <li key={c.id}>
                 <Link href={`/admin/contributions/${c.id}`} className="flex items-center justify-between gap-3 p-4 hover:bg-mist">
                   <span className="min-w-0">
@@ -202,7 +225,15 @@ export default async function OverviewPage() {
                         c.status === "verified" ? "text-club" : c.status === "pending" ? "text-ink" : "text-ink-soft line-through"
                       }`}
                     >
-                      {c.status === "verified" ? "Verified" : c.status === "pending" ? "To check" : "Rejected"}
+                      {c.status === "verified"
+                        ? c.confirmed_by === "paychangu"
+                          ? "Auto-verified"
+                          : "Verified"
+                        : c.status === "pending"
+                          ? c.source === "online"
+                            ? "Not paid yet"
+                            : "To check"
+                          : "Rejected"}
                     </span>
                   </span>
                 </Link>

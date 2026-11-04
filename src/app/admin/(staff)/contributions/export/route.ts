@@ -1,4 +1,5 @@
 import { canManageMoney, getStaff } from "@/lib/auth";
+import { siteConfig } from "@/config/site";
 import { methodLabel, statusLabels, todayInMalawi, type Contribution } from "@/lib/contributions";
 
 /** Every contribution as a CSV file that opens in Excel. Admin and treasurer only. */
@@ -18,7 +19,7 @@ export async function GET() {
     const text = value === null || value === undefined ? "" : String(value);
     return `"${(/^[=+\-@]/.test(text) ? `'${text}` : text).replace(/"/g, '""')}"`;
   };
-  const header = ["Date paid", "Donor", "Amount (MWK)", "Method", "Transaction ID", "Status", "Phone", "Name shown", "Thanked as", "Challenge day", "Source", "Note", "Message", "Recorded"];
+  const header = ["Date paid", "Donor", "Amount (MWK)", "Method", "Transaction ID", "Status", "Phone", "Name shown", "Thanked as", "Challenge day", "Source", "Confirmed by", "PayChangu tx_ref", "PayChangu status", "Email", "Supporter type", "School or organisation", "Note", "Message", "Recorded"];
   const lines = ((data ?? []) as Contribution[]).map((c) =>
     [
       c.contributed_on,
@@ -31,7 +32,13 @@ export async function GET() {
       c.show_name ? "Yes" : "No",
       c.display_name,
       c.challenge_day,
-      c.source === "public_form" ? "Website form" : "Staff",
+      c.source === "online" ? "Paid online" : c.source === "public_form" ? "Website form" : "Staff",
+      c.confirmed_by === "paychangu" ? "PayChangu (auto)" : c.status === "verified" ? "Staff" : "",
+      c.tx_ref,
+      c.paychangu_status,
+      c.donor_email,
+      c.supporter_type ? siteConfig.onlinePayments.supporterTypes[c.supporter_type] : "",
+      c.organisation,
       c.note,
       c.message,
       c.created_at,

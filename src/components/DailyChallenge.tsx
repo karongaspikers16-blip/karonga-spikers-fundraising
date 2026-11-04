@@ -46,7 +46,7 @@ function DayTiles({ challenge }: { challenge: Challenge }) {
 }
 
 /** The daily challenge card on the homepage (#challenge). Only verified money counts. */
-export function DailyChallenge({ challenge }: { challenge: Challenge }) {
+export function DailyChallenge({ challenge, payOnline = false }: { challenge: Challenge; payOnline?: boolean }) {
   const phase = challengePhase(challenge);
   const target = challenge.daily_target;
   const title = challengeTitle(target);
@@ -73,7 +73,7 @@ export function DailyChallenge({ challenge }: { challenge: Challenge }) {
           drink. Every day is a fresh chance to raise {formatMoney(target)}, and we share the result {resultTime(challenge.cutoff)}.
         </p>
 
-        {phase === "running" && today && <Today challenge={challenge} day={today} cutoff={cutoff} />}
+        {phase === "running" && today && <Today challenge={challenge} day={today} cutoff={cutoff} payOnline={payOnline} />}
 
         {phase === "after" && (
           <p className="mt-6 font-display text-2xl font-bold">
@@ -89,7 +89,9 @@ export function DailyChallenge({ challenge }: { challenge: Challenge }) {
   );
 }
 
-function Today({ challenge, day, cutoff }: { challenge: Challenge; day: Challenge["days"][number]; cutoff: string }) {
+type TodayProps = { challenge: Challenge; day: Challenge["days"][number]; cutoff: string; payOnline: boolean };
+
+function Today({ challenge, day, cutoff, payOnline }: TodayProps) {
   const target = challenge.daily_target;
   const hit = day.raised >= target;
   const verifiedWidth = Math.min(100, (day.raised / target) * 100);
@@ -156,6 +158,14 @@ function Today({ challenge, day, cutoff }: { challenge: Challenge; day: Challeng
         >
           Give from {formatMoney(challenge.min_amount)}
         </a>
+        {payOnline && (
+          <a
+            href="/donate"
+            className="inline-flex items-center justify-center rounded-lg border border-white/30 px-6 py-3.5 text-lg font-bold text-white transition-colors hover:bg-white/10"
+          >
+            Pay online
+          </a>
+        )}
         <a
           href="#report"
           className="inline-flex items-center justify-center rounded-lg border border-white/30 px-6 py-3.5 text-lg font-bold text-white transition-colors hover:bg-white/10"

@@ -1,4 +1,4 @@
-import { Handshake, Landmark, Smartphone } from "lucide-react";
+import { CreditCard, Handshake, Landmark, Smartphone } from "lucide-react";
 import type { ReactNode } from "react";
 import { siteConfig } from "@/config/site";
 import { mailtoLink, whatsappLink } from "@/lib/format";
@@ -40,9 +40,11 @@ type Props = {
   showReportForm: boolean;
   /** Smallest amount the form accepts. */
   minAmount: number;
+  /** Shows the "Pay online" card (PayChangu is set up). */
+  payOnline?: boolean;
 };
 
-export function DonationMethods({ payments, contact, showReportForm, minAmount }: Props) {
+export function DonationMethods({ payments, contact, showReportForm, minAmount, payOnline = false }: Props) {
   const { club } = siteConfig;
   const { bank } = payments;
   const reportMethods = [
@@ -65,6 +67,28 @@ export function DonationMethods({ payments, contact, showReportForm, minAmount }
         />
 
         <div className="mt-12 grid gap-5 lg:grid-cols-3">
+          {payOnline && (
+            <article className="flex flex-col rounded-2xl bg-white/[0.06] p-6 ring-2 ring-gold sm:p-7">
+              <div className="flex items-center gap-3">
+                <span className="grid size-11 place-items-center rounded-xl bg-gold text-forest">
+                  <CreditCard className="size-5" aria-hidden />
+                </span>
+                <h3 className="font-display text-2xl font-bold">Pay online</h3>
+              </div>
+              <p className="mt-6 font-display text-2xl font-semibold leading-tight">Airtel Money · TNM Mpamba · Card</p>
+              <p className="mt-3 leading-relaxed text-white/80">
+                Pay in a few taps on a secure PayChangu page. It is confirmed automatically, so there is nothing to record
+                afterwards.
+              </p>
+              <a
+                href="/donate"
+                className="mt-auto inline-flex items-center justify-center rounded-lg bg-gold px-5 py-3.5 font-bold text-forest transition-colors hover:bg-white max-lg:mt-6 lg:mt-8"
+              >
+                Pay online now
+              </a>
+            </article>
+          )}
+
           {payments.mobileMoney.map((wallet) => (
             <MethodCard key={wallet.number} icon={<Smartphone className="size-5" aria-hidden />} title="Mobile Money">
               <dl className="mt-6">

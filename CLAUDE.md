@@ -39,6 +39,7 @@ Fundraising landing page for Karonga Spikers Volleyball Club and supporters help
 - `src/app/admin/(staff)/`: Overview (`page.tsx`), `challenge/`, `contributions/` (list, new, edit, CSV export), `sponsors/`, `settings/`, `updates/`.
 - `ContributionReportForm.tsx` + `src/app/actions/contribute.ts`: the public "Record my contribution" form.
 - `DailyChallenge.tsx` (+ `ChallengeCountdown.tsx`): the Daily 50K Challenge card (`#challenge`). `src/lib/challenge.ts` (types, dates and the daily announcement text; client-safe) and `src/lib/challenge-data.ts` (public read). Admin page: `src/app/admin/(staff)/challenge/`.
+- Online payments (PayChangu): `src/lib/paychangu.ts` (server only: initiate, verify, settle, token), `src/app/donate/` (`/donate` form + action, `thank-you`, `cancelled`), `src/app/api/paychangu/callback/route.ts`, `DonateForm.tsx`, `DonateShell.tsx`, `RecheckSoon.tsx`. Admin: `src/app/admin/(staff)/online/` + `admin/OnlineActions.tsx`.
 - `src/lib/auth.ts`: signed-in staff member and role. `src/lib/resize-image.ts`: canvas resize before upload.
 - `supabase/schema.sql`: tables, RLS and the `update-photos` bucket; `supabase/rls-tests.sql`: RLS checks.
 - `ui/BrandIcons.tsx`: WhatsApp and Facebook brand marks.
@@ -63,6 +64,16 @@ Live campaign data (target, raised, payment details, contacts, journey step, spo
 - Money: `admin` and `treasurer` (`can_manage_money()` / `canManageMoney()`) record and verify; only `admin` deletes and edits `campaign_settings`. The public writes only through `submit_contribution()` (always pending) and reads only `campaign_summary()` and `challenge_summary()`; `anon` has no access to the `contributions` table.
 - Daily challenge: settings live in `campaign_settings` (`challenge_*`, `min_contribution`). Each contribution has a `challenge_day` set by the trigger: website entries by submission time with the cut-off (`challenge_cutoff`, midnight = '24:00'; `challenge_day_for()`), staff entries by `contributed_on`. The public and the secretary read per-day totals and opt-in display names only through `challenge_summary()`; never loosen the contributions RLS for this.
 - `getCampaign()` throws at runtime when Supabase is down so ISR keeps the last good page; during `next build` it falls back to site.ts.
+
+## Online payments (PayChangu)
+
+- Env var: `PAYCHANGU_SECRET_KEY`, server only (`.env.local` and Vercel as a secret). Never `NEXT_PUBLIC_`, never in client code, never logged (log HTTP status or error codes only). Without it `onlinePaymentsEnabled()` is false and every "Pay online" entry point falls back to `#donate`.
+- The merchant account belongs to Travel with Hawkins (TWH). Every club `tx_ref` is `KSVC-<uuid>`, made by `paychangu_start()` in the database; TWH ignores `KSVC-` in its handlers. Never change that prefix.
+- Checkout branding is sent with every initiate request (`customization` and `meta` from `siteConfig.onlinePayments`). Send `email` only when the supporter typed one.
+- Use per-transaction `callback_url` and `return_url` only. Never touch the PayChangu dashboard: webhook, profile, branding or API keys.
+- Never trust the redirect: confirm only through `settlePayment()` (server verify call, then `paychangu_settle()` checks tx_ref, amount and MWK and counts a tx_ref once). Call `revalidatePath("/", "layout")` when it returns `confirmed`, never during a page render.
+- There is no service_role key on the server. It proves itself with `settleToken()` (an HMAC of the PayChangu key); the database stores only its hash (`payment_secrets`, set by the admin through `paychangu_link()`). `paychangu_start`/`paychangu_settle` refuse callers without it, and `contributions_online_guard` stops staff changing whether an online payment was paid. Do not loosen these or the anon RLS.
+- `paychangu_transfers`: money TWH passed on to the club (admin and treasurer). "Owed" = confirmed online total minus transfers.
 
 ## Design Rules
 

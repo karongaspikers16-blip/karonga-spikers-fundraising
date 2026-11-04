@@ -1,15 +1,26 @@
 import Link from "next/link";
 import { redirect } from "next/navigation";
-import { Download, Eye, Globe, Pencil, Plus } from "lucide-react";
+import { BadgeCheck, CreditCard, Download, Eye, Globe, Pencil, Plus } from "lucide-react";
 import { canManageMoney, getStaff } from "@/lib/auth";
 import { formatDate, formatMoney } from "@/lib/format";
-import { methodLabel, statusLabels, summarise, type Contribution, type ContributionStatus } from "@/lib/contributions";
+import {
+  awaitingOnline,
+  methodLabel,
+  statusLabels,
+  summarise,
+  type Contribution,
+  type ContributionStatus,
+} from "@/lib/contributions";
 import { formatDay } from "@/lib/challenge";
 import { ContributionStatusButtons } from "@/components/admin/ContributionActions";
 
-type Props = { searchParams: Promise<{ status?: string; q?: string; saved?: string }> };
+type Props = { searchParams: Promise<{ status?: string; q?: string; saved?: string; method?: string }> };
 
 const tabs: (ContributionStatus | "all")[] = ["pending", "verified", "rejected", "all"];
+
+/** Filter by how it was paid: online (PayChangu) or recorded by hand. */
+const methodFilters = { all: "All methods", online: "Online", manual: "Recorded by hand" } as const;
+type MethodFilter = keyof typeof methodFilters;
 
 export default async function ContributionsPage({ searchParams }: Props) {
   const staff = await getStaff();
@@ -28,12 +39,25 @@ export default async function ContributionsPage({ searchParams }: Props) {
   const requested = tabs.find((t) => t === params.status);
   const status = requested ?? (totals.pending.count > 0 ? "pending" : "all");
   const q = (params.q ?? "").trim().toLowerCase();
+  const method: MethodFilter = params.method && params.method in methodFilters ? (params.method as MethodFilter) : "all";
   const shown = rows.filter(
     (r) =>
       (status === "all" || r.status === status) &&
+      // Unpaid online checkouts are not for checking by hand; they show under the Online filter.
+      (status !== "pending" || method === "online" || !awaitingOnline(r)) &&
+      (method === "all" || (method === "online") === (r.source === "online")) &&
       (!q ||
-        [r.donor_name, r.display_name, r.reference].some((v) => (v ?? "").toLowerCase().includes(q))),
+        [r.donor_name, r.display_name, r.reference, r.tx_ref, r.donor_email].some((v) =>
+          (v ?? "").toLowerCase().includes(q),
+        )),
   );
+  const query = (next: { status?: string; method?: MethodFilter }) => {
+    const p = new URLSearchParams({ status: next.status ?? status });
+    const m = next.method ?? method;
+    if (m !== "all") p.set("method", m);
+    if (q) p.set("q", q);
+    return `/admin/contributions?${p}`;
+  };
 
   return (
     <>
@@ -87,7 +111,7 @@ export default async function ContributionsPage({ searchParams }: Props) {
         {tabs.map((t) => (
           <Link
             key={t}
-            href={`/admin/contributions?status=${t}${q ? `&q=${encodeURIComponent(q)}` : ""}`}
+            href={query({ status: t })}
             aria-current={status === t ? "page" : undefined}
             className={`rounded-full px-3.5 py-2 text-sm font-semibold ${
               status === t ? "bg-forest text-white" : "bg-white text-forest ring-1 ring-line hover:bg-club-tint"
@@ -99,12 +123,28 @@ export default async function ContributionsPage({ searchParams }: Props) {
         ))}
       </div>
 
+      <div className="mt-3 flex flex-wrap gap-2">
+        {(Object.keys(methodFilters) as MethodFilter[]).map((m) => (
+          <Link
+            key={m}
+            href={query({ method: m })}
+            aria-current={method === m ? "true" : undefined}
+            className={`rounded-lg px-3 py-1.5 text-sm font-semibold ${
+              method === m ? "bg-club-tint text-forest ring-1 ring-club" : "text-ink-soft hover:text-forest"
+            }`}
+          >
+            {methodFilters[m]}
+          </Link>
+        ))}
+      </div>
+
       <form className="mt-3" role="search">
         <input type="hidden" name="status" value={status} />
+        {method !== "all" && <input type="hidden" name="method" value={method} />}
         <input
           name="q"
           defaultValue={params.q}
-          placeholder="Search name or transaction ID"
+          placeholder="Search name, email or transaction ID"
           aria-label="Search contributions"
           className="block w-full rounded-lg border border-line bg-white px-3.5 py-2.5 text-base text-ink focus:border-club focus:outline-none"
         />
@@ -124,6 +164,16 @@ export default async function ContributionsPage({ searchParams }: Props) {
                     <span className="truncate">{c.donor_name}</span>
                     {c.show_name && <Eye className="size-4 shrink-0 text-club" aria-label="Name shown publicly" />}
                   </p>
+                  {c.confirmed_by === "paychangu" && c.status === "verified" && (
+                    <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-club-tint px-2 py-0.5 text-xs font-bold text-club">
+                      <BadgeCheck className="size-3.5" aria-hidden /> Auto-verified
+                    </p>
+                  )}
+                  {awaitingOnline(c) && (
+                    <p className="mt-1 inline-flex items-center gap-1 rounded-full bg-mist px-2 py-0.5 text-xs font-bold text-ink-soft">
+                      Online checkout not paid yet
+                    </p>
+                  )}
                   {c.show_name && c.display_name && (
                     <p className="text-sm text-ink-soft">Thanked as “{c.display_name}”</p>
                   )}
@@ -135,9 +185,10 @@ export default async function ContributionsPage({ searchParams }: Props) {
                 <p className="shrink-0 font-display text-2xl font-bold tabular-nums text-forest">{formatMoney(c.amount)}</p>
               </div>
 
+              {c.tx_ref && <p className="mt-2 break-all font-mono text-xs text-ink-soft">{c.tx_ref}</p>}
               {c.reference && (
                 <p className="mt-2 text-sm text-ink-soft">
-                  Transaction ID{" "}
+                  {c.source === "online" ? "PayChangu reference" : "Transaction ID"}{" "}
                   <span className="block break-all font-mono text-lg font-semibold tracking-wide text-ink">{c.reference}</span>
                 </p>
               )}
@@ -147,6 +198,18 @@ export default async function ContributionsPage({ searchParams }: Props) {
                     {c.donor_phone}
                   </a>
                 )}
+                {c.source === "online" && (
+                  <span className="inline-flex items-center gap-1">
+                    <CreditCard className="size-3.5" aria-hidden /> Paid online
+                    {c.paychangu_status && c.paychangu_status !== "success" && ` (${c.paychangu_status})`}
+                  </span>
+                )}
+                {c.donor_email && (
+                  <a href={`mailto:${c.donor_email}`} className="text-club hover:underline">
+                    {c.donor_email}
+                  </a>
+                )}
+                {c.organisation && <span>{c.organisation}</span>}
                 {c.source === "public_form" && (
                   <span className="inline-flex items-center gap-1">
                     <Globe className="size-3.5" aria-hidden /> From website
@@ -158,7 +221,11 @@ export default async function ContributionsPage({ searchParams }: Props) {
               {c.note && <p className="mt-2 text-sm text-ink-soft">Note: {c.note}</p>}
 
               <div className="mt-3 flex flex-wrap items-center justify-between gap-2">
-                <ContributionStatusButtons id={c.id} status={c.status} />
+                {c.source === "online" ? (
+                  <span className="text-sm text-ink-soft">Confirmed by PayChangu, not by hand.</span>
+                ) : (
+                  <ContributionStatusButtons id={c.id} status={c.status} />
+                )}
                 <Link
                   href={`/admin/contributions/${c.id}`}
                   className="inline-flex items-center gap-1.5 rounded-lg px-3 py-2 text-sm font-semibold text-club hover:bg-club-tint"

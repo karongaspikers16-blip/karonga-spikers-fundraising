@@ -35,7 +35,7 @@ Push to GitHub, import the repo in Vercel, deploy. Add the two Supabase variable
 ## News posts and admin area (Supabase)
 
 1. Create a Supabase project. In **SQL Editor**, run all of `supabase/schema.sql`.
-2. Optional check: run `supabase/rls-tests.sql`. It should print `PASS 1` to `PASS 12` and changes nothing.
+2. Optional check: run `supabase/rls-tests.sql`. It should print `PASS 1` to `PASS 14d` and changes nothing.
 3. In **Authentication → Users**, add the admin, secretary and treasurer (email + password).
 4. Give each one a role in **SQL Editor** (copy the user id from the Users list):
    ```sql
@@ -55,6 +55,7 @@ Push to GitHub, import the repo in Vercel, deploy. Add the two Supabase variable
 | Overview: raised vs target, money waiting to check, countdown, drafts | ✅ | ✅ | ✅ (no money details) |
 | Challenge: day results and the ready-made daily announcement | ✅ | ✅ | ✅ |
 | Contributions: record, verify, reject, export CSV | ✅ (and delete) | ✅ | — |
+| Online: PayChangu payments owed, transfer log, re-check | ✅ (and connect, test) | ✅ | — |
 | Updates: news posts with photos | ✅ | view only | ✅ |
 | Sponsors: add, edit, remove | ✅ | view only | ✅ |
 | Settings: target, journey step, payment numbers, contacts, Sample badges, daily challenge | ✅ | — | — |
@@ -77,6 +78,61 @@ This is enforced by row level security in the database, not just hidden in the p
 3. Cash or a payment someone told you about: tap **Record**, fill it in and save. It is verified straight away.
 4. Made a mistake? **Undo verify** moves it back to To check. **Edit** fixes the details.
 5. **Export CSV** downloads everything for Excel, for the club's records.
+
+## Online payments (PayChangu)
+
+Supporters can pay on **`/donate`** with Airtel Money, TNM Mpamba or a card, on PayChangu's hosted checkout.
+The merchant account belongs to **Travel with Hawkins**, the club's digital partner, which transfers the
+money to the Club Treasurer. Online payments are **confirmed automatically**: nobody has to check them.
+
+**Set-up (once)**
+
+1. Run `supabase/schema.sql` again in the Supabase SQL Editor (it adds section 6). Optional: run
+   `supabase/rls-tests.sql`; it should print `PASS` up to `PASS 14d`.
+2. In Vercel → Project → Settings → Environment Variables, add **`PAYCHANGU_SECRET_KEY`** (the secret key from
+   the Travel with Hawkins PayChangu dashboard) as a *Sensitive/Secret* variable for Production and Preview,
+   then redeploy. Locally, paste it into `.env.local`. **Never** prefix it with `NEXT_PUBLIC_`, never put it in
+   code, and never send it in WhatsApp or email.
+3. Log in as the admin, open **Admin → Online** and tap **Connect online payments**. (The website proves itself
+   to the database with a token made from the key; the database only stores its hash.) Do this again if the
+   PayChangu key is ever changed.
+4. Tap **Create MWK 200 test checkout**, check the page says **Karonga Spikers Volleyball Club**, and pay.
+
+Until the key is set, the site works as before: "Pay online" buttons are hidden and "Donate Now" goes to
+the payment details.
+
+**Rules (do not change)**
+
+- Every club payment has a `tx_ref` starting with **`KSVC-`** (`KSVC-` + a UUID). Travel with Hawkins ignores
+  these in its own payment handlers, so they never create bookings there.
+- Each payment uses its own `callback_url` (`/api/paychangu/callback`) and `return_url` (`/donate/cancelled`).
+  **Never change the webhook in the PayChangu dashboard**: it belongs to Travel with Hawkins.
+- Do not change the PayChangu account profile, branding or API keys. The checkout shows the club's name
+  because every payment sends `customization.title` "Karonga Spikers Volleyball Club" (see
+  `onlinePayments` in `src/config/site.ts`).
+- A payment counts only after the server has asked PayChangu (`verify-payment`) and the status, amount and
+  currency (MWK) match. The browser redirect is never trusted, and the same `tx_ref` never counts twice.
+
+**What it changes**
+
+- Confirmed online payments are verified contributions, so they count in **Raised so far**, in that day's
+  **Daily 50K** total (using the challenge's closing time in Settings) and in the daily announcement. Names
+  appear on the thank-you lists when the supporter chose "Thank me by name".
+- In **Contributions** they carry an **Auto-verified** badge; use the **Online** filter to see them. Their
+  amount and status cannot be changed by hand (the database refuses); you can still edit the name and note.
+
+### Online payments, for the treasurer
+
+1. **Admin → Online** shows **Online payments owed to the club**: everything confirmed online minus the
+   transfers you have logged. (Amounts are what supporters paid; PayChangu's fee comes off before Travel with
+   Hawkins receives them.)
+2. Each time Travel with Hawkins sends you the online money, fill in **Log a transfer to the club** with the
+   amount that arrived, the date and the reference.
+3. If a supporter says they paid but it is not showing, tap **Re-check pending online payments**. It asks
+   PayChangu again about anything waiting more than 10 minutes, and about checkouts marked cancelled in the
+   last two days.
+4. **Export CSV** includes the online payments (tx_ref, PayChangu status, email, "I am a", school or
+   organisation).
 
 ## How to post an update (for the secretary)
 

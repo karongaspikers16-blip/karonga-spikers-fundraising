@@ -4,7 +4,8 @@ import { siteConfig } from "@/config/site";
 import { CourtLines } from "@/components/ui/CourtLines";
 import { HeroSlideshow } from "@/components/HeroSlideshow";
 
-export function Hero() {
+/** `donateHref`: /donate when online payments are on, otherwise the payment details (#donate). */
+export function Hero({ donateHref = "#donate" }: { donateHref?: string }) {
   const { hero, tournament, club } = siteConfig;
 
   const facts = [
@@ -56,7 +57,7 @@ export function Hero() {
 
         <div className="mt-8 flex flex-col gap-3 sm:flex-row">
           <a
-            href="#donate"
+            href={donateHref}
             className="inline-flex items-center justify-center rounded-lg bg-gold px-7 py-4 text-lg font-bold text-forest transition-colors hover:bg-white"
           >
             Donate Now
